@@ -134,6 +134,27 @@ without a reviewed pin bump. Every third-party action is code we don't review
 running with the job's token, so each one widens what a single upstream
 compromise can reach.
 
+## Outputs and side effects
+
+- A step or job that produces something (a file, an artifact, an output, a
+  summary) runs under exactly the condition of whatever consumes it. When
+  nothing consumes it in some case, it does not run in that case; when nothing
+  consumes it at all, remove it. Check this whenever an `if:` or a consumer
+  changes.
+- Anything a run writes outside itself (a PR comment, an issue, a label) is
+  written for concurrent and out-of-order runs: find it by a marker, update it
+  instead of adding another, delete duplicates, and change nothing when the
+  run's commit is no longer the head.
+- Report failures only. A pass posts nothing and deletes the earlier failure
+  report.
+
+**Why:** an `if:` is written when its step is added, and nothing re-checks it
+when the consumer changes later; no linter follows the link from producer to
+consumer. Concurrency cancels runs only after they start, and re-running an
+old run bypasses it, so the last run to write wins, not the newest commit. A
+success message tells nothing the check status doesn't, and every comment is a
+notification.
+
 ## Reusable workflow and composite action conventions
 
 - Inputs are kebab-case. Each workflow documents its inputs, secrets, outputs
