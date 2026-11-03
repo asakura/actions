@@ -22,9 +22,11 @@ jobs:
     name: lint
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    outputs:
+      active-comment: ${{ steps.comment.outputs.active }}
     permissions:
       contents: read # check out the scripts and workflows to lint
-      pull-requests: read # list the files the pull request changes
+      pull-requests: read # list the changed files and find the lint comment
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -101,6 +103,16 @@ jobs:
         if: ${{ !cancelled() && steps.changes.outputs.scripts == 'true' }}
         run: shfmt --simplify --diff --indent 4 --case-indent .github/scripts/*.sh 2>&1 | tee "${RUNNER_TEMP}/lint/shfmt.txt"
 
+      # Feeds only the report job's condition, which needs it only after a
+      # pass: the report job then runs only to resolve an active comment.
+      - name: Look for an active lint comment
+        id: comment
+        if: ${{ success() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/pr-comment.sh find
+
       # The report and its upload feed only the report job's download, which
       # runs only when this job did not succeed: so they run only when a step
       # failed, on a pull request the report job handles. Only writes the
@@ -126,10 +138,12 @@ jobs:
           overwrite: false
           include-hidden-files: false
 
+  # Runs only when there is something to write: a failure to report, or an
+  # active comment a pass must resolve.
   report:
     name: report
     needs: lint
-    if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && (needs.lint.result == 'failure' || needs.lint.outputs.active-comment == 'true') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
@@ -159,4 +173,4 @@ jobs:
           LINT_RESULT: ${{ needs.lint.result }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           REPORT_FILE: ${{ runner.temp }}/lint-report/report.md
-        run: .github/scripts/pr-comment.sh
+        run: .github/scripts/pr-comment.sh sync
