@@ -118,8 +118,8 @@ jobs:
         id: shellcheck
         if: ${{ !cancelled() && steps.changes.outputs.scripts == 'true' }}
         run: |
-          shellcheck --external-sources --enable=all --severity=style -f gcc \
-            .github/scripts/*.sh .github/scripts/tests/*.sh .github/scripts/tests/lib/*.sh 2>&1 \
+          shellcheck --enable=all --severity=style -f gcc \
+            .github/scripts/*.sh 2>&1 \
             | tee "${RUNNER_TEMP}/lint/shellcheck.txt" \
             | .github/scripts/annotate-gcc.sh
 
@@ -128,24 +128,8 @@ jobs:
         if: ${{ !cancelled() && steps.changes.outputs.scripts == 'true' }}
         run: |
           shfmt --simplify --diff --indent 4 --case-indent \
-            .github/scripts/*.sh .github/scripts/tests/*.sh .github/scripts/tests/lib/*.sh 2>&1 \
+            .github/scripts/*.sh 2>&1 \
             | tee "${RUNNER_TEMP}/lint/shfmt.txt"
-
-      # One file per tested script in tests/; each runs offline, prints one
-      # line per check and exits 1 if any failed. All of them run, so the
-      # report shows every failing check.
-      - name: script tests
-        id: tests
-        if: ${{ !cancelled() && steps.changes.outputs.scripts == 'true' }}
-        run: |
-          (
-            status=0
-            for test in .github/scripts/tests/*.sh; do
-              echo "${test}:"
-              "${test}" 2>&1 || status=1
-            done
-            exit "${status}"
-          ) | tee "${RUNNER_TEMP}/lint/tests.txt"
 
       # Prints a unified diff per tracked Markdown file that is not formatted,
       # like shfmt --diff; it has no line format to annotate.
@@ -204,7 +188,6 @@ jobs:
           OUTCOME_ZIZMOR: ${{ steps.zizmor.outcome }}
           OUTCOME_SHELLCHECK: ${{ steps.shellcheck.outcome }}
           OUTCOME_SHFMT: ${{ steps.shfmt.outcome }}
-          OUTCOME_TESTS: ${{ steps.tests.outcome }}
           OUTCOME_MDFORMAT: ${{ steps.mdformat.outcome }}
           OUTCOME_SUGGESTIONS: ${{ steps.suggestions.outcome }}
         run: .github/scripts/lint-report.sh

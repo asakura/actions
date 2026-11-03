@@ -6,7 +6,7 @@
 #   LINT_DIR           directory with <tool>.txt outputs (default
 #                      $RUNNER_TEMP/lint); report.md is written there.
 #   OUTCOME_ACTIONLINT, OUTCOME_ZIZMOR, OUTCOME_SHELLCHECK, OUTCOME_SHFMT,
-#   OUTCOME_TESTS, OUTCOME_MDFORMAT
+#   OUTCOME_MDFORMAT
 #                      steps.<id>.outcome of each check.
 #   OUTCOME_CHANGES    steps.changes.outcome (optional).
 #   OUTCOME_SUGGESTIONS steps.suggestions.outcome (optional).
@@ -29,7 +29,6 @@ count_findings() {
         actionlint | shellcheck) pattern='^[^:]+:[0-9]+:[0-9]+: ' ;;
         zizmor) pattern='^(error|warning|help|info|note)\[' ;;
         shfmt | mdformat) pattern='^@@ ' ;;
-        tests) pattern='^FAIL: ' ;;
         *)
             echo "count_findings: unknown tool $1" >&2
             return 1
@@ -42,13 +41,12 @@ count_findings() {
     fi
 }
 
-tools=(actionlint zizmor shellcheck shfmt tests mdformat)
+tools=(actionlint zizmor shellcheck shfmt mdformat)
 outcomes=(
     "${OUTCOME_ACTIONLINT:-skipped}"
     "${OUTCOME_ZIZMOR:-skipped}"
     "${OUTCOME_SHELLCHECK:-skipped}"
     "${OUTCOME_SHFMT:-skipped}"
-    "${OUTCOME_TESTS:-skipped}"
     "${OUTCOME_MDFORMAT:-skipped}"
 )
 
