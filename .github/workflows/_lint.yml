@@ -19,17 +19,29 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
+      pull-requests: read # list the files the pull request changes
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
+      # Decides which tools run; it never filters their findings.
+      - name: Detect changed files
+        id: changes
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/changed-files.sh
+
       - name: Install shellcheck and shfmt from the Ubuntu archive
+        if: ${{ steps.changes.outputs.workflows == 'true' || steps.changes.outputs.scripts == 'true' }}
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends shellcheck shfmt
 
       - name: Install actionlint and zizmor
+        if: ${{ steps.changes.outputs.workflows == 'true' }}
         env:
           # Release tarballs; bump each version together with its sha256.
           ACTIONLINT_VERSION: 1.7.12
@@ -45,18 +57,92 @@ jobs:
             "${ZIZMOR_SHA256}" zizmor zizmor
           echo "${RUNNER_TEMP}/bin" >> "${GITHUB_PATH}"
 
+      # Each check keeps its own exit status (the step turns red) and saves
+      # its output for the report; annotations come from the same run.
       - name: actionlint
+        id: actionlint
+        if: ${{ !cancelled() && steps.changes.outputs.workflows == 'true' }}
         env:
           SHELLCHECK_OPTS: --enable=all --severity=style
-        run: actionlint
+          ACTIONLINT_FORMAT: '{{range $err := .}}::error file={{$err.Filepath}},line={{$err.Line}},col={{$err.Column}}::{{$err.Message}} [{{$err.Kind}}]{{"\n"}}{{end}}'
+        run: |
+          set -o pipefail
+          mkdir -p "${RUNNER_TEMP}/lint"
+          actionlint -format "${ACTIONLINT_FORMAT}" 2>&1 | tee "${RUNNER_TEMP}/lint/actionlint.txt"
 
       - name: zizmor
+        id: zizmor
+        if: ${{ !cancelled() && steps.changes.outputs.workflows == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: zizmor --persona=auditor --format=github .
+        run: |
+          set -o pipefail
+          mkdir -p "${RUNNER_TEMP}/lint"
+          zizmor --persona=auditor --format=github . 2>&1 | tee "${RUNNER_TEMP}/lint/zizmor.txt"
 
       - name: shellcheck
-        run: shellcheck --enable=all --severity=style .github/scripts/*.sh
+        id: shellcheck
+        if: ${{ !cancelled() && steps.changes.outputs.scripts == 'true' }}
+        run: |
+          set -o pipefail
+          mkdir -p "${RUNNER_TEMP}/lint"
+          shellcheck --enable=all --severity=style -f gcc .github/scripts/*.sh 2>&1 \
+            | tee "${RUNNER_TEMP}/lint/shellcheck.txt" \
+            | .github/scripts/annotate-gcc.sh
 
       - name: shfmt
-        run: shfmt --simplify --diff --indent 4 --case-indent .github/scripts/*.sh
+        id: shfmt
+        if: ${{ !cancelled() && steps.changes.outputs.scripts == 'true' }}
+        run: |
+          set -o pipefail
+          mkdir -p "${RUNNER_TEMP}/lint"
+          shfmt --simplify --diff --indent 4 --case-indent .github/scripts/*.sh 2>&1 | tee "${RUNNER_TEMP}/lint/shfmt.txt"
+
+      # Only writes the report; the failed check steps already fail the job.
+      - name: report
+        if: ${{ !cancelled() }}
+        env:
+          OUTCOME_CHANGES: ${{ steps.changes.outcome }}
+          OUTCOME_ACTIONLINT: ${{ steps.actionlint.outcome }}
+          OUTCOME_ZIZMOR: ${{ steps.zizmor.outcome }}
+          OUTCOME_SHELLCHECK: ${{ steps.shellcheck.outcome }}
+          OUTCOME_SHFMT: ${{ steps.shfmt.outcome }}
+        run: .github/scripts/lint-report.sh
+
+      - name: Upload lint report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: lint-report
+          path: ${{ runner.temp }}/lint/report.md
+          retention-days: 7
+          if-no-files-found: error
+
+  report:
+    name: report
+    needs: lint
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read # check out the comment script
+      actions: read # download the lint artifact
+      pull-requests: write # create or update the lint comment
+    steps:
+      # Only for the comment script; no PR code is executed, same-repo PRs only.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: lint-report
+          path: ${{ runner.temp }}/lint-report
+
+      - name: Upsert the lint comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          LINT_RESULT: ${{ needs.lint.result }}
+          REPORT_FILE: ${{ runner.temp }}/lint-report/report.md
+        run: .github/scripts/pr-comment.sh
