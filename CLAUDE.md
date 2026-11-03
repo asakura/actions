@@ -20,6 +20,45 @@ the rules; if a case seems to need an exception, ask instead of deciding alone.
 - Every amend updates everything that describes the change: the commit
   message, the PR body and the code comments it touches.
 
+## Before removing a safeguard
+
+You may be wrong: about what a rule means, about what a request refers to, or
+about the code it applies to. Feeling sure is not a sign you are right, so
+check this every time, not only when you feel unsure.
+
+A safeguard is anything on `main` or in the repository's settings that
+protects or records: a test, check or verification step, a rule in this file,
+a ruleset or setting, a comment or issue. Ordinary code changes and your own
+unmerged work are not covered.
+
+Remove or weaken a safeguard only when the owner's request names exactly what
+goes ("delete `tests/`"); otherwise ask first. None of these names it:
+
+- your reading of a rule;
+- the owner approving a proposal of yours: that is not a request for
+  everything your reading of it implies, so name what will be removed and get
+  a yes to that;
+- a request whose readings differ in what gets removed ("fix that").
+
+Even when it is named, if you find that the change's premise doesn't hold,
+stop and ask. Don't ship the change with the problem listed as a follow-up.
+
+The PR body says what the safeguard protected and what protects that
+afterwards, so the owner can check both.
+
+A subagent can't ask the owner: when it would have to ask, it stops and
+reports back instead.
+
+Rules have exceptions, and the owner decides them. A new rule says where code
+should go; existing code that doesn't meet it yet is not a reason to remove
+anything.
+
+**Why:** rules here are short, and the owner's intent behind them includes
+exceptions nobody wrote down. A removal is only right if your reading of the
+rule, the request and the code are all right at once, and a wrong one takes
+away protection where the code is hardest to get right. A question costs one
+message; a confident wrong change costs a review, a revert and trust.
+
 ## Be explicit; never rely on defaults
 
 Spell out every setting whose default affects behavior, even when the explicit
