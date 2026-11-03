@@ -1,0 +1,9 @@
+# actionlint configuration.
+self-hosted-runner:
+  # Not self-hosted: ubuntu-26.04 is a GitHub-hosted image (GA since
+  # 2026-09), but actionlint v1.7.12, the latest release, does not know the
+  # label yet (rhysd/actionlint#682). Declaring it is the only way to accept
+  # it; nothing else is relaxed. Remove this entry once an actionlint release
+  # lists ubuntu-26.04.
+  labels:
+    - ubuntu-26.04
