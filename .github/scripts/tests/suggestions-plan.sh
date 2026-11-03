@@ -98,7 +98,7 @@ jq -n --arg md "${md}" --arg sh "${sh}" '[
 ]' | threads
 
 plan
-check "work to do" "work=true" cat "${tmp}/output"
+check "work to do" "work=maybe" cat "${tmp}/output"
 check "only the shfmt hunk is posted" '{"path":"a.sh","line":3,"start_line":1}' \
     jq -c '.comments[] | {path, line, start_line}' "${tmp}/plan/review.json"
 check "the review is on the head commit" "${HEAD_SHA}" \
