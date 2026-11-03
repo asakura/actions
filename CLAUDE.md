@@ -37,9 +37,8 @@ value equals today's default and even when that means repetition:
   `fetch-depth`, artifact `retention-days` and `if-no-files-found`, apt's
   `--no-install-recommends`.
 
-**Why:** defaults belong to someone else and change without a PR in this repo
-(GitHub has changed default token permissions, runner images and action
-defaults before). An implicit value is a design decision nobody made or
+**Why:** defaults belong to someone else (GitHub, runner images, action
+authors) and change without a PR in this repo. An implicit value is a design decision nobody made or
 reviewed: when it shifts, every consumer silently behaves in a way the system
 was not designed for, and the diff that caused it is not ours to find. An
 explicit value is visible in review, greppable, and changes only through a
@@ -83,8 +82,8 @@ the pull request forever.
 - Bash, not nushell.
 
 **Why:** shellcheck and shfmt only see files; actionlint and zizmor don't
-analyze what a `run:` block does, which is how a `curl | bash` slipped through
-once. Files can be run and tested locally and diff cleanly. Bash because
+analyze what a `run:` block does, so logic inline in YAML (a `curl | bash`, an
+unquoted variable) passes every check unseen. Files can be run and tested locally and diff cleanly. Bash because
 shellcheck is mature at `--enable=all` while nushell's linters and formatters
 are young; nushell is not in the Ubuntu archive or on runner images (every
 consumer job would download it, and actionlint cannot check `shell: nu`
@@ -124,10 +123,12 @@ can be re-pointed.
 - Least privilege: workflow-level `permissions: {}`; each job grants only what
   it uses. Jobs that need write access are separate from jobs that run checks.
 - Third-party actions only when unavoidable; prefer `gh`, `git` and small
-  scripts (`tj-actions/changed-files` was compromised in March 2025).
+  scripts.
 
 **Why:** tags and branches move, and a compromised upstream must not reach us
-without a reviewed pin bump. Persisted credentials and template injection are
+without a reviewed pin bump. Every third-party action is code we don't review
+running with the job's token, so each one widens what a single upstream
+compromise can reach. Persisted credentials and template injection are
 the two most common ways a workflow leaks its token.
 
 ## Reusable workflow and composite action conventions
