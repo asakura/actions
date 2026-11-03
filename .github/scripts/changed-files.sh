@@ -9,8 +9,8 @@
 #   GITHUB_OUTPUT      file receiving the outputs.
 #   GH_TOKEN           token with pull-requests: read (pull_request only).
 # Outputs (true/false):
-#   workflows  workflow, action or script files changed: run actionlint and
-#              zizmor on every workflow.
+#   workflows  workflow, action, script or actionlint config files changed:
+#              run actionlint and zizmor on every workflow.
 #   scripts    .github/scripts/*.sh changed: run shellcheck and shfmt on every
 #              script.
 # Outside pull_request events everything is true. A change to _lint.yml itself
@@ -42,7 +42,7 @@ else
                 workflows=true
                 scripts=true
                 ;;
-            .github/workflows/* | .github/scripts/* | action.yml | action.yaml | */action.yml | */action.yaml)
+            .github/workflows/* | .github/scripts/* | .github/actionlint.yaml | .github/actionlint.yml | action.yml | action.yaml | */action.yml | */action.yaml)
                 workflows=true
                 ;;
             *) ;;
