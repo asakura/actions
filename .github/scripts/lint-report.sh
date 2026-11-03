@@ -6,8 +6,10 @@
 #   LINT_DIR           directory with <tool>.txt outputs (default
 #                      $RUNNER_TEMP/lint); report.md is written there.
 #   OUTCOME_ACTIONLINT, OUTCOME_ZIZMOR, OUTCOME_SHELLCHECK, OUTCOME_SHFMT,
-#   OUTCOME_MDFORMAT   steps.<id>.outcome of each check.
+#   OUTCOME_TESTS, OUTCOME_MDFORMAT
+#                      steps.<id>.outcome of each check.
 #   OUTCOME_CHANGES    steps.changes.outcome (optional).
+#   OUTCOME_SUGGESTIONS steps.suggestions.outcome (optional).
 #   MAX_OUTPUT_CHARS   cap on the output shown per failed tool (default 12000),
 #                      which keeps the report below the 65536-character limit of
 #                      a GitHub comment.
@@ -27,6 +29,7 @@ count_findings() {
         actionlint | shellcheck) pattern='^[^:]+:[0-9]+:[0-9]+: ' ;;
         zizmor) pattern='^(error|warning|help|info|note)\[' ;;
         shfmt | mdformat) pattern='^@@ ' ;;
+        tests) pattern='^FAIL: ' ;;
         *)
             echo "count_findings: unknown tool $1" >&2
             return 1
@@ -39,12 +42,13 @@ count_findings() {
     fi
 }
 
-tools=(actionlint zizmor shellcheck shfmt mdformat)
+tools=(actionlint zizmor shellcheck shfmt tests mdformat)
 outcomes=(
     "${OUTCOME_ACTIONLINT:-skipped}"
     "${OUTCOME_ZIZMOR:-skipped}"
     "${OUTCOME_SHELLCHECK:-skipped}"
     "${OUTCOME_SHFMT:-skipped}"
+    "${OUTCOME_TESTS:-skipped}"
     "${OUTCOME_MDFORMAT:-skipped}"
 )
 
@@ -89,6 +93,9 @@ done
 report="## lint report"$'\n\n'"${table}"$'\n'
 if [[ ${OUTCOME_CHANGES:-success} != success ]]; then
     report+=$'\n'"The changed-files step ${OUTCOME_CHANGES}; see the job log."$'\n'
+fi
+if [[ ${OUTCOME_SUGGESTIONS:-success} == failure ]]; then
+    report+=$'\n'"Planning the formatter suggestions failed; see the job log."$'\n'
 fi
 report+="${details}"
 
