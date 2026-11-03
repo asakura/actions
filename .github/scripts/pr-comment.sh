@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Upsert the single lint report comment on a pull request.
+# Keep the single lint report comment on a pull request in sync with lint.
 #
 # Usage: pr-comment.sh
 # Env:
@@ -9,8 +9,8 @@
 #   REPORT_FILE        markdown report produced by lint-report.sh.
 #   GH_TOKEN           token with pull-requests: write.
 # The comment is found by a hidden marker and authored by github-actions[bot].
-# It is updated when it exists; it is created only when lint did not pass. A
-# passing run with no comment posts nothing.
+# When lint did not pass, it is updated, or created if missing. When lint
+# passed, it is deleted, so a passing pull request carries no lint comment.
 set -euo pipefail
 
 : "${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"
@@ -27,15 +27,17 @@ id=${ids%%$'\n'*}
 
 if [[ ${LINT_RESULT} == success ]]; then
     if [[ -z ${id} ]]; then
-        echo "lint passed and there is no comment to update"
+        echo "lint passed and there is no comment to delete"
         exit 0
     fi
-    body="${marker}"$'\n'"✅ lint: all checks passed"
-else
-    body="${marker}"$'\n'"$(cat "${REPORT_FILE}")"
-    if ((${#body} > max_chars)); then
-        body="${body:0:max_chars}"$'\n[... report truncated ...]'
-    fi
+    gh api --method DELETE "repos/${GITHUB_REPOSITORY}/issues/comments/${id}" --silent
+    echo "deleted comment ${id}"
+    exit 0
+fi
+
+body="${marker}"$'\n'"$(cat "${REPORT_FILE}")"
+if ((${#body} > max_chars)); then
+    body="${body:0:max_chars}"$'\n[... report truncated ...]'
 fi
 
 bodyfile=$(mktemp)
