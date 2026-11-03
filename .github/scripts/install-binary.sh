@@ -21,12 +21,12 @@ name=$4
 bin_dir=${5:-${RUNNER_TEMP:?RUNNER_TEMP or BIN_DIR is required}/bin}
 
 work=$(mktemp -d)
-trap 'rm -rf "$work"' EXIT
+trap 'rm -rf "${work}"' EXIT
 
-curl -fsSL --proto '=https' --tlsv1.2 -o "$work/archive.tar.gz" "$url"
+curl -fsSL --proto '=https' --tlsv1.2 -o "${work}/archive.tar.gz" "${url}"
 echo "${sha256}  ${work}/archive.tar.gz" | sha256sum --check --strict
 
-mkdir "$work/extract"
-tar -xzf "$work/archive.tar.gz" -C "$work/extract" "$member"
-mkdir -p "$bin_dir"
-install -m 0755 "$work/extract/${member}" "$bin_dir/${name}"
+mkdir "${work}/extract"
+tar -xzf "${work}/archive.tar.gz" -C "${work}/extract" "${member}"
+mkdir -p "${bin_dir}"
+install -m 0755 "${work}/extract/${member}" "${bin_dir}/${name}"
