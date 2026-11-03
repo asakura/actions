@@ -152,6 +152,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           LINT_RESULT: ${{ needs.lint.result }}
           REPORT_FILE: ${{ runner.temp }}/lint-report/report.md
         run: .github/scripts/pr-comment.sh
