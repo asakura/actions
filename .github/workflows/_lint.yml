@@ -24,9 +24,11 @@ jobs:
     timeout-minutes: 10
     outputs:
       active-comment: ${{ steps.comment.outputs.active }}
+      suggestions-work: ${{ steps.suggestions.outputs.work }}
+      scripts: ${{ steps.changes.outputs.scripts }}
     permissions:
       contents: read # check out the scripts and workflows to lint
-      pull-requests: read # list the changed files and find the lint comment
+      pull-requests: read # list the changed files; find the lint comment and the suggestion threads
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -139,6 +141,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: .github/scripts/pr-comment.sh find
 
+      # Feeds only the report job's condition: whether the formatter diffs hold
+      # a hunk to suggest, or an active suggestion thread is left to retire. It runs
+      # after a failure too, because the report job runs then anyway and its
+      # suggestion step needs this answer.
+      - name: Look for formatter suggestions to sync
+        id: suggestions
+        if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/pr-suggestions.sh find
+
       # The report and its upload feed only the report job's download, which
       # runs only when this job did not succeed: so they run only when a step
       # failed, on a pull request the report job handles. Only writes the
@@ -159,26 +173,54 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: lint-report
-          path: ${{ runner.temp }}/lint/report.md
+          # The report is the comment; the two diffs feed the suggestions.
+          path: |
+            ${{ runner.temp }}/lint/report.md
+            ${{ runner.temp }}/lint/shfmt.txt
+            ${{ runner.temp }}/lint/mdformat.txt
           retention-days: 1
           if-no-files-found: error
           overwrite: false
           include-hidden-files: false
 
-  # Runs only when there is something to write: a failure to report, or an
-  # active comment a pass must resolve.
+  # Tests for the scripts that have them. A job of its own, so a failure
+  # shows as its own check instead of a lint report with every tool passing.
+  # Always reports; only its steps are skipped when no script changed, and an
+  # empty output (the lint job failed before deciding) runs them.
+  script-tests:
+    name: script-tests
+    needs: lint
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      contents: read # check out the scripts and their tests
+    steps:
+      - name: Check out the scripts
+        if: ${{ needs.lint.outputs.scripts != 'false' }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Test pr-suggestions.sh
+        if: ${{ needs.lint.outputs.scripts != 'false' }}
+        run: .github/scripts/test-pr-suggestions.sh
+
+  # Runs only when there is something to write: a failure to report, an active
+  # comment a pass must resolve, or formatter suggestions to post or retire.
   report:
     name: report
     needs: lint
-    if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && (needs.lint.result == 'failure' || needs.lint.outputs.active-comment == 'true') }}
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && (needs.lint.result == 'failure' || needs.lint.outputs.active-comment == 'true' || needs.lint.outputs.suggestions-work == 'true') }}
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
       contents: read # check out the comment script
       actions: read # download the lint artifact
-      pull-requests: write # create, edit and minimize the lint comment
+      pull-requests: write # create, edit and minimize the lint comment; post a review with suggestions, reply to its threads and minimize their suggestions
     steps:
-      # Only for the comment script; no PR code is executed, same-repo PRs only.
+      # Only for the comment and suggestion scripts; no PR code is executed, same-repo PRs only.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -201,3 +243,15 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           REPORT_FILE: ${{ runner.temp }}/lint-report/report.md
         run: .github/scripts/pr-comment.sh sync
+
+      # Needs a review to post or suggestion threads to retire; the lint comment above
+      # is synced independently of it.
+      - name: Sync the formatter suggestions
+        if: ${{ !cancelled() && needs.lint.outputs.suggestions-work == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          LINT_RESULT: ${{ needs.lint.result }}
+          LINT_DIR: ${{ runner.temp }}/lint-report
+        run: .github/scripts/pr-suggestions.sh sync
