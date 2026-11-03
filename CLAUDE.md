@@ -29,31 +29,23 @@ value equals today's default and even when that means repetition:
   `push.branches`, and so on;
 - `permissions:` at workflow level (`{}`) and per job, each with a comment
   saying why it is needed;
-- `defaults.run.shell: bash` (GitHub's implicit shell is `bash -e {0}`; an
-  explicit `bash` adds `--noprofile --norc -o pipefail`);
+- `defaults.run.shell: bash`;
 - `runs-on` with a fixed image series (`ubuntu-24.04`, not `ubuntu-latest`);
-- `timeout-minutes` on every job (the implicit default is 360);
-- `concurrency.cancel-in-progress`, checkout's `persist-credentials` and
-  `fetch-depth`, artifact `retention-days` and `if-no-files-found`, apt's
-  `--no-install-recommends`.
+- `timeout-minutes` on every job;
+- `concurrency.cancel-in-progress`, checkout's `fetch-depth`, artifact
+  `retention-days` and `if-no-files-found`, apt's `--no-install-recommends`.
 
 **Why:** defaults belong to someone else (GitHub, runner images, action
-authors) and change without a PR in this repo. An implicit value is a design decision nobody made or
-reviewed: when it shifts, every consumer silently behaves in a way the system
+authors) and change without a PR in this repo. An implicit value is a design
+decision nobody made or reviewed: when it shifts, every consumer silently behaves in a way the system
 was not designed for, and the diff that caused it is not ours to find. An
 explicit value is visible in review, greppable, and changes only through a
 reviewed commit. The cost is a few repeated lines.
 
 ## Checks run at their strictest level
 
-| Tool | Flags |
-|---|---|
-| actionlint | default rules, `SHELLCHECK_OPTS='--enable=all --severity=style'` for `run:` blocks |
-| zizmor | `--persona=auditor` (strictest; replaces `--pedantic`) |
-| shellcheck | `--enable=all --severity=style` |
-| shfmt | `--simplify --diff --indent 4 --case-indent` |
-
-Fix findings. Only a genuine false positive or an inapplicable optional check
+Every linter runs at its strictest level; `.github/workflows/_lint.yml` holds
+the exact flags. Fix findings. Only a genuine false positive or an inapplicable optional check
 may be disabled, individually and inline with a reason
 (`# shellcheck disable=SC1234 # reason`, `# zizmor: ignore[rule] -- reason`).
 Never lower a level or disable a rule globally.
@@ -62,13 +54,14 @@ Never lower a level or disable a rule globally.
 injection, an unquoted variable, a scan that silently never runs) can stay
 broken for months. A lowered level hides an unknown and growing set of
 findings; an inline disable hides one known case and is visible in review.
-Starting clean at the strictest level keeps it cheap to stay clean.
 
-The `lint` job filters which tools run by changed files, but never filters
-findings by changed line: a change on one line can break another (a removed
-variable, a renamed reusable-workflow input). A required check is never
-path-filtered at workflow level, because a check that does not report blocks
-the pull request forever.
+Steps may be skipped when no relevant file changed, but findings are never
+filtered by changed line, and a required check is never path-filtered at
+workflow level.
+
+**Why:** a change on one line can break another (a removed variable, a renamed
+reusable-workflow input), and a required check that does not report blocks the
+pull request forever.
 
 ## Scripts
 
@@ -83,12 +76,9 @@ the pull request forever.
 
 **Why:** shellcheck and shfmt only see files; actionlint and zizmor don't
 analyze what a `run:` block does, so logic inline in YAML (a `curl | bash`, an
-unquoted variable) passes every check unseen. Files can be run and tested locally and diff cleanly. Bash because
-shellcheck is mature at `--enable=all` while nushell's linters and formatters
-are young; nushell is not in the Ubuntu archive or on runner images (every
-consumer job would download it, and actionlint cannot check `shell: nu`
-blocks); its pre-1.0 minor releases break scripts; and the tool bootstrap has
-to be bash anyway.
+unquoted variable) passes every check unseen. Files can be run and tested
+locally and diff cleanly. Nushell is not in the Ubuntu archive, and actionlint
+cannot check `shell: nu` blocks.
 
 ## Installing tools
 
@@ -116,10 +106,10 @@ can be re-pointed.
 
 ## Workflow security
 
-- Every `uses:` is pinned to a full 40-character commit SHA with a
-  `# vX.Y.Z` comment; the repository enforces `sha_pinning_required`.
-- `actions/checkout` always with `persist-credentials: false`.
-- Never interpolate `${{ … }}` inside `run:`; pass values through `env:`.
+- zizmor (`--persona=auditor`) and the repository's `sha_pinning_required`
+  enforce SHA-pinned `uses:`, `persist-credentials: false` and no `${{ … }}`
+  inside `run:`. Fix their findings; don't disable them. Add a `# vX.Y.Z`
+  comment to every pin.
 - Least privilege: workflow-level `permissions: {}`; each job grants only what
   it uses. Jobs that need write access are separate from jobs that run checks.
 - Third-party actions only when unavoidable; prefer `gh`, `git` and small
@@ -128,8 +118,7 @@ can be re-pointed.
 **Why:** tags and branches move, and a compromised upstream must not reach us
 without a reviewed pin bump. Every third-party action is code we don't review
 running with the job's token, so each one widens what a single upstream
-compromise can reach. Persisted credentials and template injection are
-the two most common ways a workflow leaks its token.
+compromise can reach.
 
 ## Reusable workflow and composite action conventions
 
@@ -141,9 +130,6 @@ the two most common ways a workflow leaks its token.
   caller's name); callers own concurrency.
 - Job ids and `name`s are public API, because they form check names
   (`secret-scan / gitleaks-pr`). Changing one is a breaking change.
-- The only internal cross-reference is
-  `uses: asakura/actions/setup-nix@<sha> # vX.Y.Z`, pinned to a tagged `main`
-  commit.
 - `.github/workflows/_test-workflows.yml` calls each reusable workflow with
   exactly the permissions its README documents.
 
