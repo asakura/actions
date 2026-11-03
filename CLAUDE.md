@@ -17,6 +17,8 @@ the rules; if a case seems to need an exception, ask instead of deciding alone.
   PR-branch SHA; pin only tagged commits on `main`.
 - Changes that consumers need land here first; then open one PR per consumer
   repo that bumps the pin.
+- Every amend updates everything that describes the change: the commit
+  message, the PR body and the code comments it touches.
 
 ## Be explicit; never rely on defaults
 
@@ -71,6 +73,46 @@ pull request forever.
 analyze what a `run:` block does, so logic inline in YAML (a `curl | bash`, an
 unquoted variable) passes every check unseen. Files can be run and tested
 locally and diff cleanly.
+
+A script must be simple enough that it needs no tests: reading it once shows
+that it works, and running it shows whether it does. When it isn't, simplify
+it or cut the feature that makes it hard to follow. In practice:
+
+- one concern per script;
+- no hand-written parser when a standard tool (`jq`, `gh --jq`, `git`) can
+  produce the data;
+- no global variables used as a function's return value;
+- no long positional argument lists: a script takes its inputs as named
+  environment variables, and structured data as JSON read with `jq`;
+- every input the caller passes is required (`: "${NAME:?…}"`), with no
+  hidden default. Variables GitHub sets (`RUNNER_TEMP`, `GITHUB_OUTPUT`,
+  `GITHUB_REPOSITORY`, …) are not inputs.
+
+**Why:** the owner reviews every line that runs with this repository's token.
+A script that takes an hour to follow gets approved unread, and code nobody
+read is where bugs and injections hide. Tests don't fix that: they are more
+code to review, and they only prove the script against what we assumed.
+
+## Adding a check
+
+A new check on this repository is a step of the `lint` job in `_lint.yml`, not
+a job of its own: gated by an output of `changed-files.sh`, its human-readable
+output saved for `lint-report.sh`, and a row in the lint report.
+
+**Why:** a step shares the lint job's checkout and change detection, its
+failure reaches the lint report people read, and `lint` is already the
+required check. A separate job costs a runner and a checkout, needs its own
+gate, and fails somewhere the report never mentions.
+
+## Verifying GitHub behavior
+
+Behavior that depends on GitHub (API fields, how review threads, comments and
+checks behave) is verified on a draft "do not merge" pull request, case by
+case, then closed with a comment saying what it showed.
+
+**Why:** GitHub's behavior is undocumented in places: a review thread whose
+lines only move stays current, and a one-line thread reports its `startLine`
+as its line, not null. Both broke code that looked right on review.
 
 ## Installing tools
 
