@@ -9,8 +9,9 @@
 #   PR_NUMBER          pull request number.
 #   HEAD_SHA           head commit the formatters ran on.
 #   GH_TOKEN           token with pull-requests: read.
-#   LINT_DIR           directory with shfmt.txt and mdformat.txt, the
-#                      formatters' diffs; a missing file means it did not run.
+#   LINT_DIR           directory with shfmt.txt, mdformat.txt and
+#                      pin-comments.diff, the diffs of the formatters and of the
+#                      pin comment check; a missing file means it did not run.
 #   PLAN_DIR           directory to write the plan into; created.
 #   GITHUB_OUTPUT      receives work=true when the plan has anything in it.
 # The plan:
@@ -40,7 +41,7 @@ work=$(mktemp -d)
 trap 'rm -rf "${work}"' EXIT
 mkdir -p "${PLAN_DIR}"
 
-# Every formatter hunk.
+# Every formatter and pin comment hunk.
 : >"${work}/hunks.jsonl"
 if [[ -f ${LINT_DIR}/shfmt.txt ]]; then
     "${scripts}/diff-hunks.sh" shfmt "" <"${LINT_DIR}/shfmt.txt" >>"${work}/hunks.jsonl"
@@ -48,16 +49,19 @@ fi
 if [[ -f ${LINT_DIR}/mdformat.txt ]]; then
     "${scripts}/diff-hunks.sh" mdformat b/ <"${LINT_DIR}/mdformat.txt" >>"${work}/hunks.jsonl"
 fi
+if [[ -f ${LINT_DIR}/pin-comments.diff ]]; then
+    "${scripts}/diff-hunks.sh" pins "" <"${LINT_DIR}/pin-comments.diff" >>"${work}/hunks.jsonl"
+fi
 
-# Print the formatters that ran and printed only a diff, as a JSON array. For
-# those a missing hunk means the formatter accepts the lines; a formatter that
-# failed with an error message proves nothing.
+# Print the tools that ran and printed only a diff, as a JSON array. For those
+# a missing hunk means the tool accepts the lines; a tool that failed with an
+# error message proves nothing.
 clean_tools() {
-    local tool
-    for tool in shfmt mdformat; do
-        if [[ -f ${LINT_DIR}/${tool}.txt ]] &&
-            ! grep -qvE '^(diff |@@ |[-+ \]|$)' "${LINT_DIR}/${tool}.txt"; then
-            echo "${tool}"
+    local entry
+    for entry in shfmt:shfmt.txt mdformat:mdformat.txt pins:pin-comments.diff; do
+        if [[ -f ${LINT_DIR}/${entry#*:} ]] &&
+            ! grep -qvE '^(diff |@@ |[-+ \]|$)' "${LINT_DIR}/${entry#*:}"; then
+            echo "${entry%%:*}"
         fi
     done | jq -Rsc 'split("\n") | map(select(. != ""))'
 }

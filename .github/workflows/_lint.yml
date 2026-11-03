@@ -26,7 +26,7 @@ jobs:
       active-comment: ${{ steps.comment.outputs.active }}
       suggestions-work: ${{ steps.suggestions.outputs.work }}
     permissions:
-      contents: read # check out the scripts and workflows to lint and test
+      contents: read # check out the scripts and workflows to lint and test; read the files of the merge base to compare pins
       pull-requests: read # list the changed files; find the lint comment and the suggestion threads
     steps:
       # The pull request's head commit, not the merge commit GitHub checks out
@@ -114,6 +114,35 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: zizmor --persona=auditor --format=github --quiet .
 
+      # Every SHA pin must end with exactly "# vX.Y.Z"; a failing line gets a
+      # suggested comment when a tag points at its commit. Prints gcc-style
+      # findings, like actionlint, and the suggested fixes as a diff for the
+      # suggestion plan.
+      - name: pin comments
+        id: pin_comments
+        if: ${{ !cancelled() && steps.changes.outputs.workflows == 'true' }}
+        env:
+          PINS_DIFF: ${{ runner.temp }}/lint/pin-comments.diff
+        run: |
+          .github/scripts/check-pin-comments.sh 2>&1 \
+            | tee "${RUNNER_TEMP}/lint/pin-comments.txt" \
+            | .github/scripts/annotate-gcc.sh
+
+      # A pin whose commit changed while its version did not: a re-pointed tag
+      # or rewritten history. Needs the base of a pull request.
+      - name: pin changes
+        id: pin_changes
+        if: ${{ !cancelled() && steps.changes.outputs.workflows == 'true' && github.event_name == 'pull_request' }}
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          .github/scripts/check-pin-changes.sh 2>&1 \
+            | tee "${RUNNER_TEMP}/lint/pin-changes.txt" \
+            | .github/scripts/annotate-gcc.sh
+
       - name: shellcheck
         id: shellcheck
         if: ${{ !cancelled() && steps.changes.outputs.scripts == 'true' }}
@@ -155,10 +184,10 @@ jobs:
         run: .github/scripts/mdformat-diff.sh 2>&1 | tee "${RUNNER_TEMP}/lint/mdformat.txt"
 
       # Feeds the report job's condition and its suggestion step: which
-      # formatter hunks to post as suggested changes and which suggestions
-      # no longer apply. Read-only. Runs on every pull request run, pass
-      # or fail, because an earlier suggestion can be outdated even when no
-      # formatter ran.
+      # formatter and pin comment hunks to post as suggested changes and which
+      # suggestions no longer apply. Read-only. Runs on every pull request run,
+      # pass or fail, because an earlier suggestion can be outdated even when
+      # no formatter ran.
       - name: Plan the formatter suggestions
         id: suggestions
         if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
@@ -202,6 +231,8 @@ jobs:
           OUTCOME_CHANGES: ${{ steps.changes.outcome }}
           OUTCOME_ACTIONLINT: ${{ steps.actionlint.outcome }}
           OUTCOME_ZIZMOR: ${{ steps.zizmor.outcome }}
+          OUTCOME_PIN_COMMENTS: ${{ steps.pin_comments.outcome }}
+          OUTCOME_PIN_CHANGES: ${{ steps.pin_changes.outcome }}
           OUTCOME_SHELLCHECK: ${{ steps.shellcheck.outcome }}
           OUTCOME_SHFMT: ${{ steps.shfmt.outcome }}
           OUTCOME_TESTS: ${{ steps.tests.outcome }}

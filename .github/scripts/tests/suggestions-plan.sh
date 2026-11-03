@@ -161,4 +161,32 @@ plan
 check "nothing to do" "work=false" cat "${tmp}/output"
 check "nothing to do, no plan files" absent exists "${tmp}/plan/review.json"
 
+# Only the pin comment check ran: its fix is posted like a formatter's, as a
+# suggestion on the line, and kept while the check still suggests it.
+cat >"${tmp}/lint/pin-comments.diff" <<'DIFF'
+--- .github/workflows/x.yml
++++ .github/workflows/x.yml
+@@ -3 +3 @@
+-      - uses: a/b@0123456789012345678901234567890123456789 # v1
++      - uses: a/b@0123456789012345678901234567890123456789 # v1.2.3
+DIFF
+printf '%s\n' '[{"filename": ".github/workflows/x.yml", "patch": "@@ -0,0 +1,4 @@\n+x"}]' >"${tmp}/files.json"
+echo '[]' | threads
+plan
+check "the pin comment fix is posted on its line" '{"path":".github/workflows/x.yml","line":3,"start_line":null}' \
+    jq -c '.comments[] | {path, line, start_line}' "${tmp}/plan/review.json"
+check "the pin comment suggestion body" '<!-- lint-suggestion tool=pins -->
+pins would format this line like this:
+
+```suggestion
+      - uses: a/b@0123456789012345678901234567890123456789 # v1.2.3
+```' jq -r '.comments[0].body' "${tmp}/plan/review.json"
+jq -n '[{id: "T1", path: ".github/workflows/x.yml", line: 3, body: "<!-- lint-suggestion tool=pins -->\nan older suggestion"}]' | threads
+plan
+check "an older pin comment suggestion is retired" "T1	100	NT1	false	Resolved: pins no longer suggests this change at 1234567." \
+    cat "${tmp}/plan/retire.tsv"
+: >"${tmp}/lint/pin-comments.diff"
+plan
+check "a clean pin comment check retires its thread" "T1" cut -f1 "${tmp}/plan/retire.tsv"
+
 exit "${failed}"
