@@ -31,12 +31,6 @@ jobs:
           persist-credentials: false
           fetch-depth: 1
 
-      # The check steps are skipped independently, so none is sure to run
-      # first; they all write their output here. It runs before anything that
-      # can fail, so the checks never find it missing.
-      - name: Create the lint output directory
-        run: mkdir -p "${RUNNER_TEMP}/lint"
-
       # Decides which tools run; it never filters their findings.
       - name: Detect changed files
         id: changes
@@ -45,6 +39,14 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GH_TOKEN: ${{ github.token }}
         run: .github/scripts/changed-files.sh
+
+      # The check steps are skipped independently, so none is sure to run
+      # first; they all write their output here. It runs whenever any check
+      # can run, and before the installs, the only steps that can fail between
+      # it and the checks.
+      - name: Create the lint output directory
+        if: ${{ steps.changes.outputs.workflows == 'true' || steps.changes.outputs.scripts == 'true' }}
+        run: mkdir -p "${RUNNER_TEMP}/lint"
 
       - name: Install shellcheck and shfmt from the Ubuntu archive
         if: ${{ steps.changes.outputs.workflows == 'true' || steps.changes.outputs.scripts == 'true' }}
@@ -99,11 +101,12 @@ jobs:
         if: ${{ !cancelled() && steps.changes.outputs.scripts == 'true' }}
         run: shfmt --simplify --diff --indent 4 --case-indent .github/scripts/*.sh 2>&1 | tee "${RUNNER_TEMP}/lint/shfmt.txt"
 
-      # The report and its upload feed only the PR comment, so they run exactly
-      # when the report job does. Only writes the report; the failed check
-      # steps already fail the job.
+      # The report and its upload feed only the report job's download, which
+      # runs only when this job did not succeed: so they run only when a step
+      # failed, on a pull request the report job handles. Only writes the
+      # report; the failed check steps already fail the job.
       - name: report
-        if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+        if: ${{ failure() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
         env:
           OUTCOME_CHANGES: ${{ steps.changes.outcome }}
           OUTCOME_ACTIONLINT: ${{ steps.actionlint.outcome }}
@@ -113,7 +116,7 @@ jobs:
         run: .github/scripts/lint-report.sh
 
       - name: Upload lint report
-        if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+        if: ${{ failure() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: lint-report
