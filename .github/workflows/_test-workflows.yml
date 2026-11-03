@@ -1,0 +1,44 @@
+name: test-workflows
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: test-workflows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  setup-nix:
+    name: setup-nix
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    permissions:
+      contents: read # check out the action under test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      # actionlint rejects the `$/` self-repository syntax, so use `./`.
+      - uses: ./.github/actions/setup-nix # zizmor: ignore[self-repository]
+
+      - name: Check Nix is community Nix
+        run: |
+          version=$(nix --version)
+          echo "${version}"
+          if [[ "${version}" == *Determinate* ]]; then
+            echo "::error::Determinate Nix was installed"
+            exit 1
+          fi
+
+      - name: Run a flake from the default cache
+        run: nix run "github:NixOS/nixpkgs/0bb2eedc20e4739f29e8045034f2828ad7054f8f#hello"
