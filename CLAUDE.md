@@ -148,8 +148,9 @@ compromise can reach.
   written for concurrent and out-of-order runs: find it by a marker, update it
   instead of adding another, delete duplicates, and change nothing when the
   run's commit is no longer the head.
-- Report failures only. A pass posts nothing and deletes the earlier failure
-  report.
+- Report failures only. A pass posts nothing new and removes the earlier
+  failure report: a PR comment is deleted; an issue is closed with a comment
+  saying why, never deleted.
 
 **Why:** an `if:` is written when its step is added, and nothing re-checks it
 when the consumer changes later; no linter follows the link from producer to
@@ -158,7 +159,10 @@ except in debug logging after a re-run, so without the log line a step that sets
 a wrong output cannot be diagnosed from the run it misbehaved in. Concurrency
 cancels runs only after they start, and re-running an old run bypasses it, so
 the last run to write wins, not the newest commit. A success message tells
-nothing the check status doesn't, and every comment is a notification.
+nothing the check status doesn't, and every comment is a notification. An
+issue is a record (a leaked secret must stay traceable), and deleting one needs
+admin rights the workflow token lacks; the closing comment tells a reader of
+the closed issue why it was resolved.
 
 ## Reusable workflow and composite action conventions
 
