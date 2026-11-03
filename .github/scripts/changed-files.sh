@@ -11,8 +11,8 @@
 # Outputs (true/false):
 #   workflows  workflow, action, script or actionlint config files changed:
 #              run actionlint and zizmor on every workflow.
-#   scripts    .github/scripts/*.sh changed: run shellcheck and shfmt on every
-#              script.
+#   scripts    a .github/scripts/**/*.sh file changed: run shellcheck and shfmt
+#              on every script, and every script test.
 #   markdown   a *.md file changed: run mdformat on every tracked Markdown
 #              file.
 # Outside pull_request events everything is true. A change to _lint.yml itself
