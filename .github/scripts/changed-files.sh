@@ -54,6 +54,4 @@ else
     done <<<"${files}"
 fi
 
-echo "workflows=${workflows}" >>"${GITHUB_OUTPUT}"
-echo "scripts=${scripts}" >>"${GITHUB_OUTPUT}"
-echo "workflows=${workflows} scripts=${scripts}"
+printf '%s\n' "workflows=${workflows}" "scripts=${scripts}" | tee -a "${GITHUB_OUTPUT}"
