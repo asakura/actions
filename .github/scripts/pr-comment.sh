@@ -2,16 +2,22 @@
 # Keep the single lint report comment on a pull request in sync with lint.
 # Comments are never deleted: a failure report is a record.
 #
-# Usage: pr-comment.sh
-# Env:
+# Usage: pr-comment.sh find|sync
+#   find  writes active=true|false to GITHUB_OUTPUT: whether the pull request
+#         has an active lint comment, which a passing run must resolve.
+#   sync  creates, updates or resolves the comment (below).
+# Env (both):
 #   GITHUB_REPOSITORY  owner/name.
 #   PR_NUMBER          pull request number.
+#   GH_TOKEN           token with pull-requests: read (find) or write (sync).
+# Env (find):
+#   GITHUB_OUTPUT      file receiving the output.
+# Env (sync):
 #   HEAD_SHA           head commit the lint run checked.
 #   LINT_RESULT        needs.lint.result of the lint job.
 #   RUN_URL            URL of the workflow run, linked from resolution notes.
 #   REPORT_FILE        markdown report produced by lint-report.sh; read only
 #                      when lint did not pass.
-#   GH_TOKEN           token with pull-requests: write.
 # Active comments are found by a hidden marker and authored by
 # github-actions[bot] (the legacy unsuffixed marker is matched too).
 # When lint did not pass, the first active comment is updated, or one is
@@ -25,11 +31,9 @@
 # of an old run) changes nothing.
 set -euo pipefail
 
+mode=${1:?usage: pr-comment.sh find|sync}
 : "${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"
 : "${PR_NUMBER:?PR_NUMBER is required}"
-: "${HEAD_SHA:?HEAD_SHA is required}"
-: "${LINT_RESULT:?LINT_RESULT is required}"
-: "${RUN_URL:?RUN_URL is required}"
 
 # The active marker must not be a substring of the resolved one, or the lookup
 # would find resolved comments.
@@ -38,17 +42,43 @@ legacy_marker='<!-- asakura-actions-lint-report -->'
 resolved_marker='<!-- asakura-actions-lint-report:resolved -->'
 max_chars=65000
 
+# Print the active comments, one tab-separated line each: id, node_id,
+# html_url. Callers capture it into a variable first, so a failed request stops
+# the script instead of looking like "no comments".
+list_active_comments() {
+    gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+        --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | (contains(\"${marker}\") or contains(\"${legacy_marker}\")))) | [.id, .node_id, .html_url] | @tsv"
+}
+
+case "${mode}" in
+    find)
+        : "${GITHUB_OUTPUT:?GITHUB_OUTPUT is required}"
+        listing=$(list_active_comments)
+        active=false
+        if [[ -n ${listing} ]]; then
+            active=true
+        fi
+        echo "active=${active}" | tee -a "${GITHUB_OUTPUT}"
+        exit 0
+        ;;
+    sync) ;;
+    *)
+        echo "unknown mode: ${mode}; expected find or sync" >&2
+        exit 2
+        ;;
+esac
+
+: "${HEAD_SHA:?HEAD_SHA is required}"
+: "${LINT_RESULT:?LINT_RESULT is required}"
+: "${RUN_URL:?RUN_URL is required}"
+
 current_sha=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.sha')
 if [[ ${current_sha} != "${HEAD_SHA}" ]]; then
     echo "lint ran on ${HEAD_SHA}, but the pull request head is ${current_sha}; leaving the comment alone"
     exit 0
 fi
 
-# Listed into a variable first, so a failed request stops the script instead
-# of looking like "no comments" and creating a duplicate. One tab-separated
-# line per comment: id, node_id, html_url.
-listing=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
-    --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | (contains(\"${marker}\") or contains(\"${legacy_marker}\")))) | [.id, .node_id, .html_url] | @tsv")
+listing=$(list_active_comments)
 ids=()
 node_ids=()
 urls=()
