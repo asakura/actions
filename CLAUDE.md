@@ -146,12 +146,14 @@ compromise can reach.
   This log line is the one exception to the consumer rule above: keep it.
 - Anything a run writes outside itself (a PR comment, an issue, a label) is
   written for concurrent and out-of-order runs: find it by a marker, update it
-  instead of adding another, delete duplicates, and change nothing when the
+  instead of adding another, close duplicates, and change nothing when the
   run's commit is no longer the head.
-- Report failures only. A pass posts nothing new and removes the earlier
-  failure report, by kind:
-  - a PR comment is deleted;
-  - an issue is never deleted: it is closed, with a comment saying why.
+- Report failures only. A pass posts nothing new; it resolves the earlier
+  failure report. Nothing is ever deleted: first say why it is resolved, then
+  close it.
+  - an issue: comment why, then close it;
+  - a PR comment: edit it to say why, then minimize it as resolved (as
+    duplicate for duplicates).
 
 **Why:** an `if:` is written when its step is added, and nothing re-checks it
 when the consumer changes later; no linter follows the link from producer to
@@ -160,10 +162,10 @@ except in debug logging after a re-run, so without the log line a step that sets
 a wrong output cannot be diagnosed from the run it misbehaved in. Concurrency
 cancels runs only after they start, and re-running an old run bypasses it, so
 the last run to write wins, not the newest commit. A success message tells
-nothing the check status doesn't, and every comment is a notification. An
-issue is a record (a leaked secret must stay traceable), and deleting one needs
-admin rights the workflow token lacks; the closing comment tells a reader of
-the closed issue why it was resolved.
+nothing the check status doesn't, and every comment is a notification. A
+failure report is a record: deleting it erases what failed and when (a leaked
+secret must stay traceable), and the reason written before closing tells a
+later reader why it no longer applies.
 
 ## Reusable workflow and composite action conventions
 
