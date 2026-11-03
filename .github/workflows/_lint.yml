@@ -99,9 +99,11 @@ jobs:
         if: ${{ !cancelled() && steps.changes.outputs.scripts == 'true' }}
         run: shfmt --simplify --diff --indent 4 --case-indent .github/scripts/*.sh 2>&1 | tee "${RUNNER_TEMP}/lint/shfmt.txt"
 
-      # Only writes the report; the failed check steps already fail the job.
+      # The report and its upload feed only the PR comment, so they run exactly
+      # when the report job does. Only writes the report; the failed check
+      # steps already fail the job.
       - name: report
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
         env:
           OUTCOME_CHANGES: ${{ steps.changes.outcome }}
           OUTCOME_ACTIONLINT: ${{ steps.actionlint.outcome }}
@@ -111,7 +113,7 @@ jobs:
         run: .github/scripts/lint-report.sh
 
       - name: Upload lint report
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: lint-report
@@ -138,7 +140,10 @@ jobs:
           persist-credentials: false
           fetch-depth: 1
 
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      # A passing run only deletes the comment and never reads the report.
+      - name: Download lint report
+        if: ${{ needs.lint.result != 'success' }}
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: lint-report
           path: ${{ runner.temp }}/lint-report
