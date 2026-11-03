@@ -121,7 +121,8 @@ installer still downloads mutable release assets unverified.
   inside `run:`. Fix their findings; don't disable them. Add a `# vX.Y.Z`
   comment to every pin.
 - Least privilege: workflow-level `permissions: {}`; each job grants only what
-  it uses, each grant with a comment saying why it is needed. Jobs that need write access are separate from jobs that run checks.
+  it uses, each grant with a comment saying why it is needed. Jobs that need
+  write access are separate from jobs that run checks.
 - Third-party actions only when unavoidable; prefer `gh`, `git` and small
   scripts.
 
