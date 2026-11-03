@@ -26,7 +26,7 @@ value equals today's default and even when that means repetition:
 - triggers: `on.pull_request.types: [opened, synchronize, reopened]`,
   `push.branches`, and so on;
 - `defaults.run.shell: bash`;
-- `runs-on` with a fixed image series (`ubuntu-24.04`, not `ubuntu-latest`);
+- `runs-on` with a fixed image series (`ubuntu-26.04`, not `ubuntu-latest`);
 - `timeout-minutes` on every job;
 - `concurrency.cancel-in-progress`, checkout's `fetch-depth`, artifact
   `retention-days` and `if-no-files-found`, apt's `--no-install-recommends`.
