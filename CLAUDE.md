@@ -164,6 +164,12 @@ compromise can reach.
   - an issue: comment why, then close it;
   - a PR comment: edit it to say why, then minimize it as resolved (as
     duplicate for duplicates).
+- Anything people read (a PR comment, an issue, a job summary, a report) is
+  written for people: tool output in its human-readable form (location,
+  message, source snippet), never machine formats such as workflow commands
+  (`::error file=…::`), raw JSON or SARIF. Machine output (annotations) is
+  produced separately and never pasted into what people read. Before calling
+  such a change done, render it from a real failing case and read it.
 
 **Why:** an `if:` is written when its step is added, and nothing re-checks it
 when the consumer changes later; no linter follows the link from producer to
@@ -178,7 +184,11 @@ the last run to write wins, not the newest commit. A success message tells
 nothing the check status doesn't, and every comment is a notification. A
 failure report is a record: deleting it erases what failed and when (a leaked
 secret must stay traceable), and the reason written before closing tells a
-later reader why it no longer applies.
+later reader why it no longer applies. A report is read by whoever has to fix
+the failure, often from a notification; workflow commands are syntax for the
+runner, and in a comment they bury the message in markup and drop the source
+context. No linter reads a rendered comment, so only looking at one catches
+this.
 
 ## Reusable workflow and composite action conventions
 
