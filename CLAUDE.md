@@ -141,6 +141,16 @@ compromise can reach.
   nothing consumes it in some case, it does not run in that case; when nothing
   consumes it at all, remove it. Check this whenever an `if:` or a consumer
   changes.
+- Every step and job runs only when it has work, not only those that produce
+  something. A job that exists for a side effect (a comment, an issue) runs
+  only when there is something to write; when that depends on outside state, a
+  cheap step upstream checks it and the job's `if:` reads that output. "It
+  might be needed" is not a condition.
+- Before calling a workflow change done, list the cases it can meet (nothing
+  relevant changed, pass, failure, pass after an earlier failure, re-run of an
+  old commit, fork) and which steps and jobs run in each. Anything that runs
+  with nothing to do is a bug. Fixing one such step means rechecking every
+  other step and job the same way.
 - Every line written to `$GITHUB_OUTPUT` is also printed to the job log;
   write it once through `tee -a "${GITHUB_OUTPUT}"` so the two cannot differ.
   This log line is the one exception to the consumer rule above: keep it.
@@ -157,7 +167,10 @@ compromise can reach.
 
 **Why:** an `if:` is written when its step is added, and nothing re-checks it
 when the consumer changes later; no linter follows the link from producer to
-consumer. GitHub shows step outputs nowhere (not in the log, the UI or the API)
+consumer. A step that runs with nothing to do still costs runner time, adds a
+check to every pull request, and hides which steps matter; the empty case
+(nothing relevant changed) is the one a change is least often tested with.
+GitHub shows step outputs nowhere (not in the log, the UI or the API)
 except in debug logging after a re-run, so without the log line a step that sets
 a wrong output cannot be diagnosed from the run it misbehaved in. Concurrency
 cancels runs only after they start, and re-running an old run bypasses it, so
