@@ -2,11 +2,16 @@ name: lint
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened]
   push:
     branches: [main]
   workflow_dispatch:
 
 permissions: {}
+
+defaults:
+  run:
+    shell: bash
 
 concurrency:
   group: lint-${{ github.ref }}
@@ -18,12 +23,13 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
-      contents: read
+      contents: read # check out the scripts and workflows to lint
       pull-requests: read # list the files the pull request changes
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 1
 
       # Decides which tools run; it never filters their findings.
       - name: Detect changed files
@@ -66,7 +72,6 @@ jobs:
           SHELLCHECK_OPTS: --enable=all --severity=style
           ACTIONLINT_FORMAT: '{{range $err := .}}::error file={{$err.Filepath}},line={{$err.Line}},col={{$err.Column}}::{{$err.Message}} [{{$err.Kind}}]\n{{end}}'
         run: |
-          set -o pipefail
           mkdir -p "${RUNNER_TEMP}/lint"
           actionlint -format "${ACTIONLINT_FORMAT}" 2>&1 | tee "${RUNNER_TEMP}/lint/actionlint.txt"
 
@@ -76,7 +81,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          set -o pipefail
           mkdir -p "${RUNNER_TEMP}/lint"
           zizmor --persona=auditor --format=github . 2>&1 | tee "${RUNNER_TEMP}/lint/zizmor.txt"
 
@@ -84,7 +88,6 @@ jobs:
         id: shellcheck
         if: ${{ !cancelled() && steps.changes.outputs.scripts == 'true' }}
         run: |
-          set -o pipefail
           mkdir -p "${RUNNER_TEMP}/lint"
           shellcheck --enable=all --severity=style -f gcc .github/scripts/*.sh 2>&1 \
             | tee "${RUNNER_TEMP}/lint/shellcheck.txt" \
@@ -94,7 +97,6 @@ jobs:
         id: shfmt
         if: ${{ !cancelled() && steps.changes.outputs.scripts == 'true' }}
         run: |
-          set -o pipefail
           mkdir -p "${RUNNER_TEMP}/lint"
           shfmt --simplify --diff --indent 4 --case-indent .github/scripts/*.sh 2>&1 | tee "${RUNNER_TEMP}/lint/shfmt.txt"
 
@@ -117,6 +119,8 @@ jobs:
           path: ${{ runner.temp }}/lint/report.md
           retention-days: 7
           if-no-files-found: error
+          overwrite: false
+          include-hidden-files: false
 
   report:
     name: report
@@ -133,6 +137,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 1
 
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
