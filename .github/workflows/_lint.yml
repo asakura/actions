@@ -24,12 +24,18 @@ jobs:
     timeout-minutes: 10
     outputs:
       active-comment: ${{ steps.comment.outputs.active }}
+      suggestions-work: ${{ steps.suggestions.outputs.work }}
+      scripts: ${{ steps.changes.outputs.scripts }}
     permissions:
       contents: read # check out the scripts and workflows to lint
-      pull-requests: read # list the changed files and find the lint comment
+      pull-requests: read # list the changed files; find the lint comment and the suggestion threads
     steps:
+      # The pull request's head commit, not the merge commit GitHub checks out
+      # by default: suggested changes are placed by head-commit line numbers,
+      # and merging a newer main shifts them.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
           fetch-depth: 1
 
@@ -129,6 +135,33 @@ jobs:
         if: ${{ !cancelled() && steps.changes.outputs.markdown == 'true' }}
         run: .github/scripts/mdformat-diff.sh 2>&1 | tee "${RUNNER_TEMP}/lint/mdformat.txt"
 
+      # Feeds the report job's condition and its suggestion step: which
+      # formatter hunks to post as suggested changes and which outdated
+      # suggestions to retire. Read-only. Runs on every pull request run, pass
+      # or fail, because an earlier suggestion can be outdated even when no
+      # formatter ran.
+      - name: Plan the formatter suggestions
+        id: suggestions
+        if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GH_TOKEN: ${{ github.token }}
+          LINT_DIR: ${{ runner.temp }}/lint
+          PLAN_DIR: ${{ runner.temp }}/suggestions
+        run: .github/scripts/suggestions-plan.sh
+
+      - name: Upload the suggestion plan
+        if: ${{ !cancelled() && steps.suggestions.outputs.work == 'true' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: suggestions
+          path: ${{ runner.temp }}/suggestions
+          retention-days: 1
+          if-no-files-found: error
+          overwrite: false
+          include-hidden-files: false
+
       # Feeds only the report job's condition, which needs it only after a
       # pass: the report job then runs only to resolve an active comment.
       - name: Look for an active lint comment
@@ -152,6 +185,7 @@ jobs:
           OUTCOME_SHELLCHECK: ${{ steps.shellcheck.outcome }}
           OUTCOME_SHFMT: ${{ steps.shfmt.outcome }}
           OUTCOME_MDFORMAT: ${{ steps.mdformat.outcome }}
+          OUTCOME_SUGGESTIONS: ${{ steps.suggestions.outcome }}
         run: .github/scripts/lint-report.sh
 
       - name: Upload lint report
@@ -165,20 +199,44 @@ jobs:
           overwrite: false
           include-hidden-files: false
 
+  # Tests for the scripts that have them. A job of its own, so a failure
+  # shows as its own check instead of a lint report with every tool passing.
+  # Always reports; only its steps are skipped when no script changed, and an
+  # empty output (the lint job failed before deciding) runs them.
+  script-tests:
+    name: script-tests
+    needs: lint
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      contents: read # check out the scripts and their tests
+    steps:
+      - name: Check out the scripts
+        if: ${{ needs.lint.outputs.scripts != 'false' }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Test the suggestion scripts
+        if: ${{ needs.lint.outputs.scripts != 'false' }}
+        run: .github/scripts/test-suggestions.sh
+
   # Runs only when there is something to write: a failure to report, or an
   # active comment a pass must resolve.
   report:
     name: report
     needs: lint
-    if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && (needs.lint.result == 'failure' || needs.lint.outputs.active-comment == 'true') }}
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && (needs.lint.result == 'failure' || needs.lint.outputs.active-comment == 'true' || needs.lint.outputs.suggestions-work == 'true') }}
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
       contents: read # check out the comment script
-      actions: read # download the lint artifact
-      pull-requests: write # create, edit and minimize the lint comment
+      actions: read # download the lint report and the suggestion plan
+      pull-requests: write # create, edit and minimize the lint comment; post suggestions, reply to and minimize outdated ones
     steps:
-      # Only for the comment script; no PR code is executed, same-repo PRs only.
+      # Only for the comment and suggestion scripts; no PR code is executed, same-repo PRs only.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -192,7 +250,10 @@ jobs:
           name: lint-report
           path: ${{ runner.temp }}/lint-report
 
+      # Not when the job runs only for suggestions after a pass with no
+      # comment to resolve.
       - name: Sync the lint comment
+        if: ${{ needs.lint.result == 'failure' || needs.lint.outputs.active-comment == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -201,3 +262,19 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           REPORT_FILE: ${{ runner.temp }}/lint-report/report.md
         run: .github/scripts/pr-comment.sh sync
+
+      - name: Download the suggestion plan
+        if: ${{ !cancelled() && needs.lint.outputs.suggestions-work == 'true' }}
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: suggestions
+          path: ${{ runner.temp }}/suggestions
+
+      - name: Apply the suggestion plan
+        if: ${{ !cancelled() && needs.lint.outputs.suggestions-work == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PLAN_DIR: ${{ runner.temp }}/suggestions
+        run: .github/scripts/suggestions-apply.sh
