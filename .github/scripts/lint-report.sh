@@ -24,9 +24,13 @@ count_findings() {
     local file="${lint_dir}/$1.txt"
     local pattern
     case "$1" in
-        shellcheck) pattern='^[^:]+:[0-9]+:[0-9]+: ' ;;
+        actionlint | shellcheck) pattern='^[^:]+:[0-9]+:[0-9]+: ' ;;
+        zizmor) pattern='^(error|warning|help|info|note)\[' ;;
         shfmt) pattern='^@@ ' ;;
-        *) pattern='^::(error|warning|notice) ' ;;
+        *)
+            echo "count_findings: unknown tool $1" >&2
+            return 1
+            ;;
     esac
     if [[ -f ${file} ]]; then
         grep -cE "${pattern}" "${file}" || true
