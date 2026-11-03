@@ -78,6 +78,16 @@
   ],
   "packageRules": [
     {
+      "description": "Every action pin carries a full vX.Y.Z comment, so every legitimate update changes the version; a digest-only update (same version, new SHA) means the tag was re-pointed and must not be proposed",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchUpdateTypes": [
+        "digest"
+      ],
+      "enabled": false
+    },
+    {
       "description": "Release binaries are verified against a sha256 pinned next to the version; Renovate cannot compute it, so the check fails until it is updated",
       "matchDepNames": [
         "rhysd/actionlint",
