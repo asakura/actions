@@ -24,39 +24,39 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install lint tools
+      - name: Install shellcheck and shfmt from the Ubuntu archive
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends shellcheck shfmt
+
+      - name: Install actionlint and zizmor
         env:
-          # Ubuntu 24.04 (noble) debs; sha256 is from noble's universe Packages index.
-          SHELLCHECK_VERSION: 0.9.0-1
-          SHELLCHECK_SHA256: eadf78f4dfcb1a271f47a9be5e38d124dffe9d4fea74956fab34e8c3e322a854
-          SHFMT_VERSION: 3.8.0-1
-          SHFMT_SHA256: f57e6b3cbcbd001d7ab078a1cc53240be1eeab448eaa1a4cac6b2747784d6f9e
           # Release tarballs; bump each version together with its sha256.
           ACTIONLINT_VERSION: 1.7.12
           ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
           ZIZMOR_VERSION: 1.32.0
           ZIZMOR_SHA256: bb110cc765eca9cd7efb2e284a956be5974c60027b0970f16397d86208a9957b
         run: |
-          .github/scripts/install-deb.sh shellcheck "$SHELLCHECK_VERSION" "$SHELLCHECK_SHA256"
-          .github/scripts/install-deb.sh shfmt "$SHFMT_VERSION" "$SHFMT_SHA256"
           .github/scripts/install-binary.sh \
             "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" \
-            "$ACTIONLINT_SHA256" actionlint actionlint
+            "${ACTIONLINT_SHA256}" actionlint actionlint
           .github/scripts/install-binary.sh \
             "https://github.com/zizmorcore/zizmor/releases/download/v${ZIZMOR_VERSION}/zizmor-x86_64-unknown-linux-gnu.tar.gz" \
-            "$ZIZMOR_SHA256" zizmor zizmor
-          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+            "${ZIZMOR_SHA256}" zizmor zizmor
+          echo "${RUNNER_TEMP}/bin" >> "${GITHUB_PATH}"
 
       - name: actionlint
-        run: actionlint -shellcheck="$RUNNER_TEMP/bin/shellcheck" -color
+        env:
+          SHELLCHECK_OPTS: --enable=all --severity=style
+        run: actionlint
 
       - name: zizmor
         env:
           GH_TOKEN: ${{ github.token }}
-        run: zizmor --pedantic --format=github .
+        run: zizmor --persona=auditor --format=github .
 
       - name: shellcheck
-        run: shellcheck --severity=style .github/scripts/*.sh
+        run: shellcheck --enable=all --severity=style .github/scripts/*.sh
 
       - name: shfmt
-        run: shfmt --diff --indent 4 --case-indent .github/scripts/*.sh
+        run: shfmt --simplify --diff --indent 4 --case-indent .github/scripts/*.sh
