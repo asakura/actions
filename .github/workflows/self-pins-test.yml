@@ -1,0 +1,14 @@
+name: self-pins test (do not merge)
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  branch:
+    uses: asakura/actions/.github/workflows/_lint.yml@main
+  no-comment:
+    uses: asakura/actions/.github/workflows/_lint.yml@4e95f7798550acb586fcc1945aa669aca6c6168c
+  no-tag:
+    uses: asakura/actions/.github/workflows/_lint.yml@4e95f7798550acb586fcc1945aa669aca6c6168c # v9.9.9
