@@ -74,21 +74,40 @@ jobs:
           echo "${RUNNER_TEMP}/bin" >> "${GITHUB_PATH}"
 
       # Each check keeps its own exit status (the step turns red) and saves
-      # its output for the report; annotations come from the same run.
+      # its human-readable output for the report. Annotations are workflow
+      # commands, which are for the runner, not for people: they are derived
+      # separately and never saved into the report.
       - name: actionlint
         id: actionlint
         if: ${{ !cancelled() && steps.changes.outputs.workflows == 'true' }}
         env:
           SHELLCHECK_OPTS: --enable=all --severity=style
-          ACTIONLINT_FORMAT: '{{range $err := .}}::error file={{$err.Filepath}},line={{$err.Line}},col={{$err.Column}}::{{$err.Message}} [{{$err.Kind}}]\n{{end}}'
-        run: actionlint -format "${ACTIONLINT_FORMAT}" 2>&1 | tee "${RUNNER_TEMP}/lint/actionlint.txt"
+          # gcc-style "file:line:col: error: message [kind]" plus the source
+          # snippet: readable in the report, and annotate-gcc.sh parses it.
+          ACTIONLINT_FORMAT: '{{range $err := .}}{{$err.Filepath}}:{{$err.Line}}:{{$err.Column}}: error: {{$err.Message}} [{{$err.Kind}}]\n{{$err.Snippet}}\n\n{{end}}'
+        run: |
+          actionlint -no-color -format "${ACTIONLINT_FORMAT}" 2>&1 \
+            | tee "${RUNNER_TEMP}/lint/actionlint.txt" \
+            | .github/scripts/annotate-gcc.sh
 
       - name: zizmor
         id: zizmor
         if: ${{ !cancelled() && steps.changes.outputs.workflows == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: zizmor --persona=auditor --format=github . 2>&1 | tee "${RUNNER_TEMP}/lint/zizmor.txt"
+        run: |
+          zizmor --persona=auditor --format=plain --color=never --render-links=never \
+            --show-audit-urls=always --quiet . 2>&1 \
+            | tee "${RUNNER_TEMP}/lint/zizmor.txt"
+
+      # zizmor's readable output has no line format to parse, so annotations
+      # need a second run in its github format; only when there are findings.
+      # It exits like the zizmor step, which has already failed the job.
+      - name: zizmor annotations
+        if: ${{ !cancelled() && steps.zizmor.outcome == 'failure' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: zizmor --persona=auditor --format=github --quiet .
 
       - name: shellcheck
         id: shellcheck

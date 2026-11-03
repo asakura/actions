@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Echo shellcheck "-f gcc" output and add a GitHub annotation per finding.
+# Echo gcc-style findings and add a GitHub annotation per finding.
 #
 # Usage: shellcheck -f gcc ... | annotate-gcc.sh
+#        actionlint -format '<gcc-style template>' | annotate-gcc.sh
 # Reads stdin; every line is passed through unchanged, and each
 # "file:line:col: level: message" line is followed by an
 # "::error|warning|notice file=...,line=...,col=...::message" command.
