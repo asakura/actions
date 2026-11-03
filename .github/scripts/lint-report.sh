@@ -4,16 +4,15 @@
 # Usage: lint-report.sh
 # Env:
 #   LINT_DIR           directory with <tool>.txt outputs (default
-#                      $RUNNER_TEMP/lint); report.md and status are written there.
+#                      $RUNNER_TEMP/lint); report.md is written there.
 #   OUTCOME_ACTIONLINT, OUTCOME_ZIZMOR, OUTCOME_SHELLCHECK, OUTCOME_SHFMT
 #                      steps.<id>.outcome of each check.
 #   OUTCOME_CHANGES    steps.changes.outcome (optional).
 #   MAX_OUTPUT_CHARS   cap on the output shown per failed tool (default 12000),
 #                      which keeps the report below the 65536-character limit of
 #                      a GitHub comment.
-#   GITHUB_STEP_SUMMARY  if set, the report is appended to it.
-# Writes report.md, and status ("passed" or "failed") in LINT_DIR. Exits 0 even
-# when checks failed: the failing check steps already fail the job.
+# Writes report.md in LINT_DIR; its only reader is the pull request comment.
+# Exits 0 even when checks failed: the failing check steps already fail the job.
 set -euo pipefail
 
 lint_dir=${LINT_DIR:-${RUNNER_TEMP:?RUNNER_TEMP or LINT_DIR is required}/lint}
@@ -44,7 +43,6 @@ outcomes=(
     "${OUTCOME_SHFMT:-skipped}"
 )
 
-failed=false
 table=$'| tool | result | findings |\n| --- | --- | --- |'
 details=""
 
@@ -55,7 +53,6 @@ for i in "${!tools[@]}"; do
             table+=$'\n'"| ${tool} | passed | 0 |"
             ;;
         failure)
-            failed=true
             findings=$(count_findings "${tool}")
             # A failure without parseable findings means the tool itself errored.
             if [[ ${findings} == 0 ]]; then
@@ -79,7 +76,6 @@ for i in "${!tools[@]}"; do
             table+=$'\n'"| ${tool} | skipped — no relevant changes | - |"
             ;;
         *)
-            failed=true
             table+=$'\n'"| ${tool} | ${outcomes[i]} | - |"
             ;;
     esac
@@ -87,19 +83,8 @@ done
 
 report="## lint report"$'\n\n'"${table}"$'\n'
 if [[ ${OUTCOME_CHANGES:-success} != success ]]; then
-    failed=true
     report+=$'\n'"The changed-files step ${OUTCOME_CHANGES}; see the job log."$'\n'
 fi
 report+="${details}"
 
 printf '%s' "${report}" >"${lint_dir}/report.md"
-if [[ ${failed} == true ]]; then
-    echo failed >"${lint_dir}/status"
-else
-    echo passed >"${lint_dir}/status"
-fi
-
-if [[ -n ${GITHUB_STEP_SUMMARY:-} ]]; then
-    printf '%s' "${report}" >>"${GITHUB_STEP_SUMMARY}"
-fi
-cat "${lint_dir}/report.md"
