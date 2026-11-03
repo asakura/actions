@@ -118,7 +118,7 @@ jobs:
         with:
           name: lint-report
           path: ${{ runner.temp }}/lint/report.md
-          retention-days: 7
+          retention-days: 1
           if-no-files-found: error
           overwrite: false
           include-hidden-files: false
