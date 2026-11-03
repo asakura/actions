@@ -44,20 +44,18 @@ jobs:
 
       # The check steps are skipped independently, so none is sure to run
       # first; they all write their output here. It runs whenever any check
-      # can run, and before the installs, the only steps that can fail between
+      # can run, and before the install, the only step that can fail between
       # it and the checks.
       - name: Create the lint output directory
-        if: ${{ steps.changes.outputs.workflows == 'true' || steps.changes.outputs.scripts == 'true' }}
+        if: ${{ steps.changes.outputs.workflows == 'true' || steps.changes.outputs.scripts == 'true' || steps.changes.outputs.markdown == 'true' }}
         run: mkdir -p "${RUNNER_TEMP}/lint"
 
-      - name: Install shellcheck and shfmt from the Ubuntu archive
-        if: ${{ steps.changes.outputs.workflows == 'true' || steps.changes.outputs.scripts == 'true' }}
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends shellcheck shfmt
-
-      - name: Install actionlint and zizmor
-        if: ${{ steps.changes.outputs.workflows == 'true' }}
+      # One step installs every tool whenever any check can run: a single
+      # apt-get update is cheaper than one per tool group. The archive has no
+      # mdformat plugins (no GFM tables), so tables are formatted as plain
+      # paragraphs.
+      - name: Install the lint tools
+        if: ${{ steps.changes.outputs.workflows == 'true' || steps.changes.outputs.scripts == 'true' || steps.changes.outputs.markdown == 'true' }}
         env:
           # Release tarballs; bump each version together with its sha256.
           ACTIONLINT_VERSION: 1.7.12
@@ -65,6 +63,8 @@ jobs:
           ZIZMOR_VERSION: 1.32.0
           ZIZMOR_SHA256: bb110cc765eca9cd7efb2e284a956be5974c60027b0970f16397d86208a9957b
         run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends shellcheck shfmt mdformat
           .github/scripts/install-binary.sh \
             "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" \
             "${ACTIONLINT_SHA256}" actionlint actionlint
@@ -122,6 +122,13 @@ jobs:
         if: ${{ !cancelled() && steps.changes.outputs.scripts == 'true' }}
         run: shfmt --simplify --diff --indent 4 --case-indent .github/scripts/*.sh 2>&1 | tee "${RUNNER_TEMP}/lint/shfmt.txt"
 
+      # Prints a unified diff per tracked Markdown file that is not formatted,
+      # like shfmt --diff; it has no line format to annotate.
+      - name: mdformat
+        id: mdformat
+        if: ${{ !cancelled() && steps.changes.outputs.markdown == 'true' }}
+        run: .github/scripts/mdformat-diff.sh 2>&1 | tee "${RUNNER_TEMP}/lint/mdformat.txt"
+
       # Feeds only the report job's condition, which needs it only after a
       # pass: the report job then runs only to resolve an active comment.
       - name: Look for an active lint comment
@@ -144,6 +151,7 @@ jobs:
           OUTCOME_ZIZMOR: ${{ steps.zizmor.outcome }}
           OUTCOME_SHELLCHECK: ${{ steps.shellcheck.outcome }}
           OUTCOME_SHFMT: ${{ steps.shfmt.outcome }}
+          OUTCOME_MDFORMAT: ${{ steps.mdformat.outcome }}
         run: .github/scripts/lint-report.sh
 
       - name: Upload lint report
