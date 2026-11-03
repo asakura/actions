@@ -31,6 +31,12 @@ jobs:
           persist-credentials: false
           fetch-depth: 1
 
+      # The check steps are skipped independently, so none is sure to run
+      # first; they all write their output here. It runs before anything that
+      # can fail, so the checks never find it missing.
+      - name: Create the lint output directory
+        run: mkdir -p "${RUNNER_TEMP}/lint"
+
       # Decides which tools run; it never filters their findings.
       - name: Detect changed files
         id: changes
@@ -71,24 +77,19 @@ jobs:
         env:
           SHELLCHECK_OPTS: --enable=all --severity=style
           ACTIONLINT_FORMAT: '{{range $err := .}}::error file={{$err.Filepath}},line={{$err.Line}},col={{$err.Column}}::{{$err.Message}} [{{$err.Kind}}]\n{{end}}'
-        run: |
-          mkdir -p "${RUNNER_TEMP}/lint"
-          actionlint -format "${ACTIONLINT_FORMAT}" 2>&1 | tee "${RUNNER_TEMP}/lint/actionlint.txt"
+        run: actionlint -format "${ACTIONLINT_FORMAT}" 2>&1 | tee "${RUNNER_TEMP}/lint/actionlint.txt"
 
       - name: zizmor
         id: zizmor
         if: ${{ !cancelled() && steps.changes.outputs.workflows == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          mkdir -p "${RUNNER_TEMP}/lint"
-          zizmor --persona=auditor --format=github . 2>&1 | tee "${RUNNER_TEMP}/lint/zizmor.txt"
+        run: zizmor --persona=auditor --format=github . 2>&1 | tee "${RUNNER_TEMP}/lint/zizmor.txt"
 
       - name: shellcheck
         id: shellcheck
         if: ${{ !cancelled() && steps.changes.outputs.scripts == 'true' }}
         run: |
-          mkdir -p "${RUNNER_TEMP}/lint"
           shellcheck --enable=all --severity=style -f gcc .github/scripts/*.sh 2>&1 \
             | tee "${RUNNER_TEMP}/lint/shellcheck.txt" \
             | .github/scripts/annotate-gcc.sh
@@ -96,9 +97,7 @@ jobs:
       - name: shfmt
         id: shfmt
         if: ${{ !cancelled() && steps.changes.outputs.scripts == 'true' }}
-        run: |
-          mkdir -p "${RUNNER_TEMP}/lint"
-          shfmt --simplify --diff --indent 4 --case-indent .github/scripts/*.sh 2>&1 | tee "${RUNNER_TEMP}/lint/shfmt.txt"
+        run: shfmt --simplify --diff --indent 4 --case-indent .github/scripts/*.sh 2>&1 | tee "${RUNNER_TEMP}/lint/shfmt.txt"
 
       # Only writes the report; the failed check steps already fail the job.
       - name: report
