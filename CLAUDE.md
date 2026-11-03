@@ -37,17 +37,17 @@ value equals today's default and even when that means repetition:
 
 **Why:** defaults belong to someone else (GitHub, runner images, action
 authors) and change without a PR in this repo. An implicit value is a design
-decision nobody made or reviewed: when it shifts, every consumer silently behaves in a way the system
-was not designed for, and the diff that caused it is not ours to find. An
-explicit value is visible in review, greppable, and changes only through a
-reviewed commit. The cost is a few repeated lines.
+decision nobody made or reviewed: when it shifts, every consumer silently
+behaves in a way the system was not designed for, and the diff that caused it
+is not ours to find. An explicit value is visible in review, greppable, and
+changes only through a reviewed commit. The cost is a few repeated lines.
 
 ## Checks run at their strictest level
 
 Every linter runs at its strictest level; `.github/workflows/_lint.yml` holds
-the exact flags. Fix findings. Only a genuine false positive or an inapplicable optional check
-may be disabled, individually and inline with a reason
-(`# shellcheck disable=SC1234 # reason`, `# zizmor: ignore[rule] -- reason`).
+the exact flags. Fix findings. Only a genuine false positive or an
+inapplicable optional check may be disabled, individually and inline with a
+reason (`# shellcheck disable=SC1234 # reason`, `# zizmor: ignore[rule] -- reason`).
 Never lower a level or disable a rule globally.
 
 **Why:** a false positive costs a minute and a comment; a missed problem (an
