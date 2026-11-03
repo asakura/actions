@@ -141,6 +141,9 @@ compromise can reach.
   nothing consumes it in some case, it does not run in that case; when nothing
   consumes it at all, remove it. Check this whenever an `if:` or a consumer
   changes.
+- Every line written to `$GITHUB_OUTPUT` is also printed to the job log;
+  write it once through `tee -a "${GITHUB_OUTPUT}"` so the two cannot differ.
+  This log line is the one exception to the consumer rule above: keep it.
 - Anything a run writes outside itself (a PR comment, an issue, a label) is
   written for concurrent and out-of-order runs: find it by a marker, update it
   instead of adding another, delete duplicates, and change nothing when the
@@ -150,10 +153,12 @@ compromise can reach.
 
 **Why:** an `if:` is written when its step is added, and nothing re-checks it
 when the consumer changes later; no linter follows the link from producer to
-consumer. Concurrency cancels runs only after they start, and re-running an
-old run bypasses it, so the last run to write wins, not the newest commit. A
-success message tells nothing the check status doesn't, and every comment is a
-notification.
+consumer. GitHub shows step outputs nowhere (not in the log, the UI or the API)
+except in debug logging after a re-run, so without the log line a step that sets
+a wrong output cannot be diagnosed from the run it misbehaved in. Concurrency
+cancels runs only after they start, and re-running an old run bypasses it, so
+the last run to write wins, not the newest commit. A success message tells
+nothing the check status doesn't, and every comment is a notification.
 
 ## Reusable workflow and composite action conventions
 
