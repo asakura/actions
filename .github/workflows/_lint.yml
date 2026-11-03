@@ -64,7 +64,7 @@ jobs:
         if: ${{ !cancelled() && steps.changes.outputs.workflows == 'true' }}
         env:
           SHELLCHECK_OPTS: --enable=all --severity=style
-          ACTIONLINT_FORMAT: '{{range $err := .}}::error file={{$err.Filepath}},line={{$err.Line}},col={{$err.Column}}::{{$err.Message}} [{{$err.Kind}}]{{"\n"}}{{end}}'
+          ACTIONLINT_FORMAT: '{{range $err := .}}::error file={{$err.Filepath}},line={{$err.Line}},col={{$err.Column}}::{{$err.Message}} [{{$err.Kind}}]\n{{end}}'
         run: |
           set -o pipefail
           mkdir -p "${RUNNER_TEMP}/lint"

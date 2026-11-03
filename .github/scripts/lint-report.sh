@@ -56,7 +56,12 @@ for i in "${!tools[@]}"; do
             ;;
         failure)
             failed=true
-            table+=$'\n'"| ${tool} | failed | $(count_findings "${tool}") |"
+            findings=$(count_findings "${tool}")
+            # A failure without parseable findings means the tool itself errored.
+            if [[ ${findings} == 0 ]]; then
+                findings="tool error"
+            fi
+            table+=$'\n'"| ${tool} | failed | ${findings} |"
             body=""
             if [[ -f "${lint_dir}/${tool}.txt" ]]; then
                 # Cut by bytes (never fewer characters than bytes allow), then
