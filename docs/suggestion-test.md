@@ -1,9 +1,9 @@
 # Suggestion test
 
-* one
-* two  
+- one
+- two
 
 1. first
-1. second
+2. second
 
-Trailing spaces   
+Trailing spaces
