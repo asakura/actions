@@ -1,0 +1,92 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "timezone": "Europe/Amsterdam",
+  "schedule": [
+    "before 6am on monday"
+  ],
+  "semanticCommits": "enabled",
+  "semanticCommitType": "chore",
+  "semanticCommitScope": "deps",
+  "dependencyDashboard": true,
+  "automerge": false,
+  "rebaseWhen": "auto",
+  "prHourlyLimit": 2,
+  "prConcurrentLimit": 10,
+  "github-actions": {
+    "enabled": true,
+    "managerFilePatterns": [
+      "/^\\.github/(workflows/[^/]+|actions/[^/]+/action)\\.ya?ml$/"
+    ]
+  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "actionlint release binary in _lint.yml (ACTIONLINT_SHA256 is bumped by hand)",
+      "managerFilePatterns": [
+        "/^\\.github/workflows/[^/]+\\.ya?ml$/"
+      ],
+      "matchStrings": [
+        "ACTIONLINT_VERSION: (?<currentValue>\\d+\\.\\d+\\.\\d+)\\n"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "rhysd/actionlint",
+      "extractVersionTemplate": "^v(?<version>.+)$"
+    },
+    {
+      "customType": "regex",
+      "description": "zizmor release binary in _lint.yml (ZIZMOR_SHA256 is bumped by hand)",
+      "managerFilePatterns": [
+        "/^\\.github/workflows/[^/]+\\.ya?ml$/"
+      ],
+      "matchStrings": [
+        "ZIZMOR_VERSION: (?<currentValue>\\d+\\.\\d+\\.\\d+)\\n"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "zizmorcore/zizmor",
+      "extractVersionTemplate": "^v(?<version>.+)$"
+    },
+    {
+      "customType": "regex",
+      "description": "nix-installer release binary in the setup-nix action (NIX_INSTALLER_SHA256 is bumped by hand)",
+      "managerFilePatterns": [
+        "/^\\.github/actions/[^/]+/action\\.ya?ml$/"
+      ],
+      "matchStrings": [
+        "NIX_INSTALLER_VERSION: (?<currentValue>\\d+\\.\\d+\\.\\d+)\\n"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "DeterminateSystems/nix-installer",
+      "extractVersionTemplate": "^v(?<version>.+)$"
+    },
+    {
+      "customType": "regex",
+      "description": "Commit-pinned nixpkgs flake references (github:NixOS/nixpkgs/<sha>#...) in workflows",
+      "managerFilePatterns": [
+        "/^\\.github/workflows/[^/]+\\.ya?ml$/"
+      ],
+      "matchStrings": [
+        "github:NixOS/nixpkgs/(?<currentDigest>[0-9a-f]{40})#"
+      ],
+      "datasourceTemplate": "git-refs",
+      "depNameTemplate": "nixpkgs",
+      "packageNameTemplate": "https://github.com/NixOS/nixpkgs",
+      "currentValueTemplate": "nixos-unstable"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Release binaries are verified against a sha256 pinned next to the version; Renovate cannot compute it, so the check fails until it is updated",
+      "matchDepNames": [
+        "rhysd/actionlint",
+        "zizmorcore/zizmor",
+        "DeterminateSystems/nix-installer"
+      ],
+      "prBodyNotes": [
+        "**Manual step:** update the matching `*_SHA256` next to the version. Download the release asset, run `sha256sum` on it, and cross-check the result against the release's checksum file, digest or attestation. Until then the install step fails the sha256 check, by design."
+      ]
+    }
+  ]
+}
