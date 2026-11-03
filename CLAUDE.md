@@ -100,19 +100,22 @@ installer still downloads mutable release assets unverified.
   **Why:** an image ships a whole userland nobody here reviews (its own libc,
   shell, package manager and their unpatched libraries), it gets no security
   updates from the runner's archive, and no linter looks inside it.
-- No Docker: no job-level `container:` or `services:`, no Docker container
-  actions (`runs.using: docker`), no `docker` commands. Use `podman run` in a
-  step. **Why:** the Docker daemon runs as root and access to its socket is
-  root on the host, and containers run as root by default. Podman has no
-  daemon and runs rootless, so a container escape lands in an unprivileged
-  user.
+- GitHub's Docker-based features (`services:`, job-level `container:`) are
+  fine. When a `run:` block or script has to start a container itself, prefer
+  `podman run` to `docker run`. **Why:** rootless Podman runs the container as
+  the runner user, so files it writes into the workspace are not root-owned
+  and later steps can read and clean them up; it needs no daemon; and the same
+  command stays unprivileged if a job ever moves to a self-hosted runner,
+  where Docker's root daemon would expose the host.
 - The smallest possible image: OS-less (`scratch`, distroless) rather than
   Alpine-based, pinned by digest (`image@sha256:…`), never by tag. Any other
   image (Alpine, Debian, Ubuntu, …) needs the owner's decision first; ask.
   **Why:** every extra package is attack surface, and an OS-less image has no
   shell or package manager to exploit or to carry vulnerabilities. Tags can be
   re-pointed, and zizmor checks image pins only in `container:` and
-  `services:`, not inside `run:`.
+  `services:`, not inside `run:`. On a GitHub-hosted runner the job already
+  has `sudo` and the VM is discarded afterwards, so the risk is what the image
+  can do with the job's token, secrets and checkout, not the container engine.
 
 ## Workflow security
 
