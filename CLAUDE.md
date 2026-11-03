@@ -72,13 +72,11 @@ pull request forever.
 - Exception: reusable workflows and composite actions inline their logic in
   `run:` blocks, because `./` inside them resolves to the caller's checkout,
   not this repository.
-- Bash, not nushell.
 
 **Why:** shellcheck and shfmt only see files; actionlint and zizmor don't
 analyze what a `run:` block does, so logic inline in YAML (a `curl | bash`, an
 unquoted variable) passes every check unseen. Files can be run and tested
-locally and diff cleanly. Nushell is not in the Ubuntu archive, and actionlint
-cannot check `shell: nu` blocks.
+locally and diff cleanly.
 
 ## Installing tools
 
