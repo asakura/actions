@@ -26,7 +26,7 @@ jobs:
       active-comment: ${{ steps.comment.outputs.active }}
       suggestions-work: ${{ steps.suggestions.outputs.work }}
     permissions:
-      contents: read # check out the scripts and workflows to lint and test
+      contents: read # check out the scripts and workflows to lint and test; read tags and compare with main for self-pins
       pull-requests: read # list the changed files; find the lint comment and the suggestion threads
     steps:
       # The pull request's head commit, not the merge commit GitHub checks out
@@ -113,6 +113,18 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: zizmor --persona=auditor --format=github --quiet .
+
+      # Every pin of this repository in its own workflows and actions must be
+      # a tagged commit on main. Prints gcc-style findings, like actionlint.
+      - name: self-pins
+        id: self_pins
+        if: ${{ !cancelled() && steps.changes.outputs.workflows == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          .github/scripts/check-self-pins.sh 2>&1 \
+            | tee "${RUNNER_TEMP}/lint/self-pins.txt" \
+            | .github/scripts/annotate-gcc.sh
 
       - name: shellcheck
         id: shellcheck
@@ -202,6 +214,7 @@ jobs:
           OUTCOME_CHANGES: ${{ steps.changes.outcome }}
           OUTCOME_ACTIONLINT: ${{ steps.actionlint.outcome }}
           OUTCOME_ZIZMOR: ${{ steps.zizmor.outcome }}
+          OUTCOME_SELF_PINS: ${{ steps.self_pins.outcome }}
           OUTCOME_SHELLCHECK: ${{ steps.shellcheck.outcome }}
           OUTCOME_SHFMT: ${{ steps.shfmt.outcome }}
           OUTCOME_TESTS: ${{ steps.tests.outcome }}

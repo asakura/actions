@@ -10,7 +10,8 @@
 #   GH_TOKEN           token with pull-requests: read (pull_request only).
 # Outputs (true/false):
 #   workflows  workflow, action, script or actionlint config files changed:
-#              run actionlint and zizmor on every workflow.
+#              run actionlint, zizmor and the self-pins check on every
+#              workflow.
 #   scripts    a .github/scripts/**/*.sh file changed: run shellcheck and shfmt
 #              on every script, and every script test.
 #   markdown   a *.md file changed: run mdformat on every tracked Markdown
