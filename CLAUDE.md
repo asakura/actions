@@ -149,8 +149,9 @@ compromise can reach.
   instead of adding another, delete duplicates, and change nothing when the
   run's commit is no longer the head.
 - Report failures only. A pass posts nothing new and removes the earlier
-  failure report: a PR comment is deleted; an issue is closed with a comment
-  saying why, never deleted.
+  failure report, by kind:
+  - a PR comment is deleted;
+  - an issue is never deleted: it is closed, with a comment saying why.
 
 **Why:** an `if:` is written when its step is added, and nothing re-checks it
 when the consumer changes later; no linter follows the link from producer to
