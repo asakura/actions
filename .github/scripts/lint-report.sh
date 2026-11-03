@@ -5,8 +5,8 @@
 # Env:
 #   LINT_DIR           directory with <tool>.txt outputs (default
 #                      $RUNNER_TEMP/lint); report.md is written there.
-#   OUTCOME_ACTIONLINT, OUTCOME_ZIZMOR, OUTCOME_SHELLCHECK, OUTCOME_SHFMT
-#                      steps.<id>.outcome of each check.
+#   OUTCOME_ACTIONLINT, OUTCOME_ZIZMOR, OUTCOME_SHELLCHECK, OUTCOME_SHFMT,
+#   OUTCOME_MDFORMAT   steps.<id>.outcome of each check.
 #   OUTCOME_CHANGES    steps.changes.outcome (optional).
 #   MAX_OUTPUT_CHARS   cap on the output shown per failed tool (default 12000),
 #                      which keeps the report below the 65536-character limit of
@@ -26,7 +26,7 @@ count_findings() {
     case "$1" in
         actionlint | shellcheck) pattern='^[^:]+:[0-9]+:[0-9]+: ' ;;
         zizmor) pattern='^(error|warning|help|info|note)\[' ;;
-        shfmt) pattern='^@@ ' ;;
+        shfmt | mdformat) pattern='^@@ ' ;;
         *)
             echo "count_findings: unknown tool $1" >&2
             return 1
@@ -39,12 +39,13 @@ count_findings() {
     fi
 }
 
-tools=(actionlint zizmor shellcheck shfmt)
+tools=(actionlint zizmor shellcheck shfmt mdformat)
 outcomes=(
     "${OUTCOME_ACTIONLINT:-skipped}"
     "${OUTCOME_ZIZMOR:-skipped}"
     "${OUTCOME_SHELLCHECK:-skipped}"
     "${OUTCOME_SHFMT:-skipped}"
+    "${OUTCOME_MDFORMAT:-skipped}"
 )
 
 table=$'| tool | result | findings |\n| --- | --- | --- |'
