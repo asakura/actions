@@ -9,8 +9,8 @@
 #   OUTCOME_PIN_CHANGES, OUTCOME_SHELLCHECK, OUTCOME_SHFMT, OUTCOME_TESTS,
 #   OUTCOME_MDFORMAT
 #                      steps.<id>.outcome of each check.
-#   OUTCOME_CHANGES    steps.changes.outcome (optional).
-#   OUTCOME_SUGGESTIONS steps.suggestions.outcome (optional).
+#   OUTCOME_CHANGES    steps.changes.outcome.
+#   OUTCOME_SUGGESTIONS steps.suggestions.outcome.
 #   MAX_OUTPUT_CHARS   cap on the output shown per failed tool, which keeps
 #                      the report below the 65536-character limit of a
 #                      GitHub comment.
@@ -20,6 +20,8 @@ set -euo pipefail
 
 lint_dir=${LINT_DIR:?LINT_DIR is required}
 max_chars=${MAX_OUTPUT_CHARS:?MAX_OUTPUT_CHARS is required}
+outcome_changes=${OUTCOME_CHANGES:?OUTCOME_CHANGES is required}
+outcome_suggestions=${OUTCOME_SUGGESTIONS:?OUTCOME_SUGGESTIONS is required}
 mkdir -p "${lint_dir}"
 
 # Print the number of findings in the output of tool $1.
@@ -45,14 +47,14 @@ count_findings() {
 
 tools=(actionlint zizmor pin-comments pin-changes shellcheck shfmt tests mdformat)
 outcomes=(
-    "${OUTCOME_ACTIONLINT:-skipped}"
-    "${OUTCOME_ZIZMOR:-skipped}"
-    "${OUTCOME_PIN_COMMENTS:-skipped}"
-    "${OUTCOME_PIN_CHANGES:-skipped}"
-    "${OUTCOME_SHELLCHECK:-skipped}"
-    "${OUTCOME_SHFMT:-skipped}"
-    "${OUTCOME_TESTS:-skipped}"
-    "${OUTCOME_MDFORMAT:-skipped}"
+    "${OUTCOME_ACTIONLINT:?OUTCOME_ACTIONLINT is required}"
+    "${OUTCOME_ZIZMOR:?OUTCOME_ZIZMOR is required}"
+    "${OUTCOME_PIN_COMMENTS:?OUTCOME_PIN_COMMENTS is required}"
+    "${OUTCOME_PIN_CHANGES:?OUTCOME_PIN_CHANGES is required}"
+    "${OUTCOME_SHELLCHECK:?OUTCOME_SHELLCHECK is required}"
+    "${OUTCOME_SHFMT:?OUTCOME_SHFMT is required}"
+    "${OUTCOME_TESTS:?OUTCOME_TESTS is required}"
+    "${OUTCOME_MDFORMAT:?OUTCOME_MDFORMAT is required}"
 )
 
 table=$'| tool | result | findings |\n| --- | --- | --- |'
@@ -94,10 +96,10 @@ for i in "${!tools[@]}"; do
 done
 
 report="## lint report"$'\n\n'"${table}"$'\n'
-if [[ ${OUTCOME_CHANGES:-success} != success ]]; then
-    report+=$'\n'"The changed-files step ${OUTCOME_CHANGES}; see the job log."$'\n'
+if [[ ${outcome_changes} != success ]]; then
+    report+=$'\n'"The changed-files step ${outcome_changes}; see the job log."$'\n'
 fi
-if [[ ${OUTCOME_SUGGESTIONS:-success} == failure ]]; then
+if [[ ${outcome_suggestions} == failure ]]; then
     report+=$'\n'"Planning the formatter suggestions failed; see the job log."$'\n'
 fi
 report+="${details}"
