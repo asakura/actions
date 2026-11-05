@@ -6,6 +6,9 @@
 #   the review threads query   with ${tmp}/threads.json;
 #   pulls/7/files              with ${tmp}/files.json;
 #   pulls/7                    with a head SHA of ${STUB_HEAD};
+#   compare/...                with ${tmp}/compare.json;
+#   git/trees/...              with ${tmp}/trees.json;
+#   contents/PATH?ref=...      with the file ${tmp}/base/PATH;
 #   anything else              with nothing.
 # shellcheck shell=bash
 # shellcheck disable=SC2154 # tmp is set by check.sh.
@@ -17,6 +20,19 @@ echo "$*" >>"${STUB_DIR}/gh.log"
 case "$*" in
     *'query($owner'*) cat "${STUB_DIR}/threads.json" ;;
     *'/pulls/7/files'*) cat "${STUB_DIR}/files.json" ;;
+    *'/compare/'*) cat "${STUB_DIR}/compare.json" ;;
+    *'/git/trees/'*) cat "${STUB_DIR}/trees.json" ;;
+    *'/contents/'*)
+        for arg in "$@"; do
+            case "${arg}" in
+                */contents/*)
+                    path=${arg#*/contents/}
+                    cat "${STUB_DIR}/base/${path%%\?*}"
+                    ;;
+                *) ;;
+            esac
+        done
+        ;;
     'api repos/o/r/pulls/7') echo "{\"head\": {\"sha\": \"${STUB_HEAD}\"}}" ;;
     *) ;;
 esac
