@@ -101,8 +101,10 @@ gh api graphql --paginate -f query="${query}" \
 # The suggestion comment for every hunk. The fence is longer than any
 # backtick run in the lines, so none closes it.
 jq -c 'select(.start >= 1)
+    # When no line has a backtick there is no run, and max of [] is null.
     | ("`" * ([([.lines[] | scan("`+") | length] | max // 0) + 1, 3] | max)) as $fence
     | (if .start < .end then "these lines" else "this line" end) as $what
+    # lines is empty when the formatter empties the file (new side +0,0); add of [] is null.
     | {tool, path, line: .end, side: "RIGHT",
        body: "<!-- lint-suggestion tool=\(.tool) -->\n\(.tool) would format \($what) like this:\n\n\($fence)suggestion\n\(.lines | map(. + "\n") | add // "")\($fence)"}
     + (if .start < .end then {start_line: .start, start_side: "RIGHT"} else {} end)' \
@@ -135,6 +137,7 @@ if [[ -s ${work}/suggestions.jsonl ]]; then
         jq -c '.[] | select(.patch != null) | .filename as $path
             | .patch | split("\n")[]
             | capture("^@@ -[0-9,]+ \\+(?<start>[0-9]+)(,(?<count>[0-9]+))? @@")
+            # A hunk header without a count (@@ -3 +3 @@) means a count of 1.
             | (.start | tonumber) as $start
             | {path: $path, start: $start, end: ($start + (.count // "1" | tonumber) - 1)}' \
             >"${work}/ranges.jsonl"
@@ -142,6 +145,7 @@ fi
 
 # The suggestions that fit a range and are not open already.
 jq -c --slurpfile ranges "${work}/ranges.jsonl" --slurpfile threads "${work}/threads.jsonl" "${same}"'
+    # A one-line suggestion is posted without start_line.
     . as $suggestion
     | select(any($ranges[]; .path == $suggestion.path
         and .start <= ($suggestion.start_line // $suggestion.line) and $suggestion.line <= .end))

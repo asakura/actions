@@ -29,6 +29,7 @@ threads() {
         | {data: {repository: {pullRequest: {reviewThreads: {nodes: map(
             . as $thread
             | ($required - keys) as $missing
+            # The thread that lacks fields may lack its id too.
             | if ($missing | length) > 0
               then error("thread \($thread.id // "?") lacks: \($missing | join(", "))")
               else . end
