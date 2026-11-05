@@ -5,7 +5,8 @@
 # Nix release, never logs in to FlakeHub, and sends no installer telemetry.
 # The installer binary is downloaded from its GitHub release, and the Nix
 # tarball from releases.nixos.org; each is verified against a pinned sha256
-# before it is used.
+# before it is used. /etc/nix/nix.conf is written here in full, not by the
+# installer.
 name: setup-nix
 description: Install a pinned community (upstream) Nix release with a sha256-verified Determinate nix-installer binary and Nix tarball, without Determinate Nix, FlakeHub or telemetry.
 
@@ -75,13 +76,30 @@ runs:
 
       run: |
         set -euo pipefail
+        # The whole nix.conf, written before the installer starts the daemon,
+        # so no setting comes from the installer's defaults.
+        conf=(
+          "build-users-group = nixbld" # the group the installer creates
+          "trusted-users = root" # default spelled out; the runner user is not trusted
+          "sandbox = true" # default spelled out
+          "max-jobs = auto" # one build per CPU
+          "experimental-features = nix-command flakes" # nix run, nix build and flakes
+          "substituters = https://cache.nixos.org" # default spelled out; no other cache
+          "trusted-substituters =" # default spelled out; no cache can be enabled later
+          "trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=" # default spelled out
+          "access-tokens = github.com=${GITHUB_TOKEN_INPUT}" # avoids GitHub rate limits when fetching
+        )
+        sudo install -d -m 0755 /etc/nix
+        printf '%s\n' "${conf[@]}" | sudo install -m 0644 /dev/stdin /etc/nix/nix.conf
+
         args=(
           --no-confirm
           --prefer-upstream-nix # community Nix, no --determinate (no FlakeHub)
           --nix-package-url "${RUNNER_TEMP}/nix.tar.xz" # the tarball verified above
+          --skip-nix-conf # keep the nix.conf above; the installer writes none
+          --nix-build-group-name nixbld # default spelled out; build-users-group above
           --diagnostic-endpoint "" # no telemetry
           --init systemd # default spelled out
-          --extra-conf "access-tokens = github.com=${GITHUB_TOKEN_INPUT}" # avoids GitHub rate limits when fetching
         )
         sudo "${RUNNER_TEMP}/nix-installer" install linux "${args[@]}"
 
