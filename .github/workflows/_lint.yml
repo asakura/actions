@@ -128,8 +128,10 @@ jobs:
             | tee "${RUNNER_TEMP}/lint/pin-comments.txt" \
             | .github/scripts/annotate-gcc.sh
 
-      # A pin whose commit changed while its version did not: a re-pointed tag
-      # or rewritten history. Needs the base of a pull request.
+      # A pin whose commit differs from the commit of the same action and
+      # version anywhere at the merge base, or from another pin of the pull
+      # request: a re-pointed tag or rewritten history. Needs the base of a
+      # pull request.
       - name: pin changes
         id: pin_changes
         if: ${{ !cancelled() && steps.changes.outputs.workflows == 'true' && github.event_name == 'pull_request' }}
