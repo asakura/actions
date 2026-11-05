@@ -3,6 +3,7 @@ name: test-workflows
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+
   workflow_dispatch:
 
 permissions: {}
@@ -20,8 +21,10 @@ jobs:
     name: setup-nix
     runs-on: ubuntu-26.04
     timeout-minutes: 10
+
     permissions:
       contents: read # check out the action under test
+
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -35,6 +38,7 @@ jobs:
         run: |
           version=$(nix --version)
           echo "${version}"
+
           if [[ "${version}" == *Determinate* ]]; then
             echo "::error::Determinate Nix was installed"
             exit 1
