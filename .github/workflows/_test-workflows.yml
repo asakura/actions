@@ -33,6 +33,8 @@ jobs:
 
       # actionlint rejects the `$/` self-repository syntax, so use `./`.
       - uses: ./.github/actions/setup-nix # zizmor: ignore[self-repository]
+        with:
+          github-token: ${{ github.token }}
 
       - name: Check Nix is community Nix
         run: |
