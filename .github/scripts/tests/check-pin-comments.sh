@@ -77,7 +77,7 @@ steps:
   - run: true
 YAML
 
-check "a pin without a version comment, with a wrong one, with no tag upstream, with an unnecessary exception, with the old inline form, and markers that are useless, stray, misplaced or misindented" \
+check "a pin without a version comment, with a wrong one, with no tag upstream, with an unnecessary exception, with the marker inline on the uses: line, and markers that are useless, stray, misplaced or misindented" \
     ".github/workflows/x.yml:2:55: error: a/b@1111111 has no version comment; v1.2.3 points at this commit, so the fix is to add \"# v1.2.3\". [pin-comment]
   - uses: a/b@${one}
 

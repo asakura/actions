@@ -19,8 +19,8 @@
 #      branch the commit was taken from) and <ref> is no vX.Y.Z, else false,
 #    "ref": what the pin follows upstream: the version of a "# vX.Y.Z" pin, the
 #      <ref> of an exception, else null,
-#    "inline": true when the line itself holds "# pin-comment:" (the old form,
-#      which is an error),
+#    "inline": true when the line itself holds "# pin-comment:" (the inline
+#      form, which is an error),
 #    "inline_ref": the <ref> of "# <ref> # pin-comment: no vX.Y.Z tag upstream"
 #      at the end of the line, else null}
 # "version" is only ever a vX.Y.Z tag, so it is null for an exception; callers

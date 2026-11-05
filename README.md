@@ -23,7 +23,7 @@ Its indentation is the column of the first non-space character of the `uses:` li
 The marker is not on the `uses:` line, because zizmor reads everything after the first `#` there as the version and reports a comment that holds no version.
 The `uses:` line ends with `# <ref>`, one word without spaces, for example `v29`, `stable` or `1.26`, and nothing after it.
 The lint workflow accepts this only while no `vX.Y.Z` tag of that repository points at the pinned commit; once one does, it asks for `# vX.Y.Z` and no marker instead.
-The old form, with the marker after the ref on the `uses:` line, fails the lint with a suggestion that moves it.
+A marker after the ref on the `uses:` line itself fails the lint, with a suggestion that moves it to its own line above.
 A marker line that is not directly above a pin, has other text, is indented differently from the `uses:` line below it, or sits above a line that does not end with `# <ref>` fails the lint too.
 The same action and `<ref>` must keep the same commit, just like a version.
 Renovate reads the first comment of the `uses:` line as the tag.
