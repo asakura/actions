@@ -12,7 +12,7 @@ description: Install a pinned community (upstream) Nix release with a sha256-ver
 
 inputs:
   github-token:
-    description: GitHub token written to nix.conf access-tokens, to avoid GitHub API rate limits when Nix fetches flakes from GitHub. Pass ${{ github.token }}.
+    description: GitHub token written to nix.conf access-tokens, to avoid GitHub API rate limits when Nix fetches flakes from GitHub. Pass the github.token context value.
     required: true
 
 runs:
