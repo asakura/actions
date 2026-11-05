@@ -1,0 +1,30 @@
+name: demo-pins
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  demo:
+    name: demo
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - uses: DeterminateSystems/update-flake-lock@da03c0f078bc4b2c37ee4f7e072d34bf8f188bb3 # v29 # pin-comment: no vX.Y.Z tag upstream
+      # pin-comment: no vX.Y.Z tag upstream
+      - run: "true"
+        # pin-comment: no vX.Y.Z tag upstream
+      - uses: DeterminateSystems/update-flake-lock@da03c0f078bc4b2c37ee4f7e072d34bf8f188bb3 # v29
+      # pin-comment: no tag
+      - run: "true"
+      # pin-comment: no vX.Y.Z tag upstream
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # main
+      # pin-comment: no vX.Y.Z tag upstream
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v7.0.1
