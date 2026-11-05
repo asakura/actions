@@ -67,3 +67,17 @@ jobs:
 
       - name: Run a flake from the default cache
         run: nix run "github:NixOS/nixpkgs/0bb2eedc20e4739f29e8045034f2828ad7054f8f#hello"
+
+  secret-scan:
+    # actionlint rejects the `$/` self-repository syntax, so use `./`.
+    uses: ./.github/workflows/secret-scan.yml # zizmor: ignore[self-repository]
+    permissions:
+      contents: read # the called workflow checks out the repository
+      issues: write # the called workflow opens, comments on and closes the failure issue
+    with:
+      tool-source: pinned
+      nixpkgs-rev: 0bb2eedc20e4739f29e8045034f2828ad7054f8f
+      trufflehog: true
+      idle-days: 7
+      issue-title: Secret scan failed on the default branch history
+      timeout-minutes: 30
