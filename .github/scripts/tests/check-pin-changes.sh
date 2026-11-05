@@ -3,8 +3,8 @@
 # Test check-pin-changes.sh: a pin with the same action and version but another
 # commit than at the merge base is an error in a changed, new or renamed file,
 # wherever the old pin was; so are two commits for one version in one pull
-# request. An exception pin ("# <ref> # pin-comment: no vX.Y.Z tag upstream")
-# follows its <ref> the same way.
+# request. An exception pin ("# <ref>" under a marker line above it, see
+# check-pin-comments.sh) follows its <ref> the same way.
 set -euo pipefail
 
 tests=$(cd "$(dirname "$0")" && pwd)
@@ -49,9 +49,11 @@ cat >"${tmp}/base/.github/workflows/b.yml" <<YAML
 steps:
   - uses: actions/checkout@${two} # v7
 YAML
+mark='# pin-comment: no vX.Y.Z tag upstream'
 cat >"${tmp}/base/.github/workflows/e.yml" <<YAML
 steps:
-  - uses: other/ex@${three} # stable # pin-comment: no vX.Y.Z tag upstream
+  ${mark}
+  - uses: other/ex@${three} # stable
 YAML
 cat >"${tmp}/trees.json" <<'JSON'
 {"truncated": false, "tree": [
@@ -112,14 +114,19 @@ check "pins that agree with the merge base and with each other" "" changes
 
 # other/ex follows the ref "stable" at the merge base: the same ref at another
 # commit is an error, another ref is not.
-printf 'steps:\n  - uses: other/ex@%s # stable # pin-comment: no vX.Y.Z tag upstream\n  - uses: other/ex@%s # next # pin-comment: no vX.Y.Z tag upstream\n' \
-    "${four}" "${four}" >"${tmp}/repo/.github/workflows/f.yml"
+cat >"${tmp}/repo/.github/workflows/f.yml" <<YAML
+steps:
+  ${mark}
+  - uses: other/ex@${four} # stable
+  ${mark}
+  - uses: other/ex@${four} # next
+YAML
 cat >"${tmp}/files.json" <<'JSON'
 [{"filename": ".github/workflows/f.yml", "status": "added"}]
 JSON
 check "an exception pin at another commit than the merge base, same ref" \
-    ".github/workflows/f.yml:2:59: error: other/ex@4444444 is pinned as ref stable, but at the merge base ref stable was 3333333 (.github/workflows/e.yml:2): the same version or ref must be the same commit, so a tag was re-pointed or history was rewritten [pin-changed]
-  - uses: other/ex@${four} # stable # pin-comment: no vX.Y.Z tag upstream
+    ".github/workflows/f.yml:3:59: error: other/ex@4444444 is pinned as ref stable, but at the merge base ref stable was 3333333 (.github/workflows/e.yml:3): the same version or ref must be the same commit, so a tag was re-pointed or history was rewritten [pin-changed]
+  - uses: other/ex@${four} # stable
 [exit status 1]" \
     changes
 

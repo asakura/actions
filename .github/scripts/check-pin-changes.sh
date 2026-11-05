@@ -10,9 +10,9 @@
 #   BASE_SHA           base branch commit of the pull request event.
 #   HEAD_SHA           head commit of the pull request.
 #   GH_TOKEN           token with contents: read and pull-requests: read.
-# A pin is "uses: ...@<sha> # vX.Y.Z", or an exception with the comment
-# "# <ref> # pin-comment: no vX.Y.Z tag upstream"; its "ref" is the version or
-# the <ref> (see pin-lines.sh).
+# A pin is "uses: ...@<sha> # vX.Y.Z", or an exception: "# <ref>" under the
+# marker line "# pin-comment: no vX.Y.Z tag upstream" directly above it; its
+# "ref" is the version or the <ref> (see pin-lines.sh).
 # Reads the pins of every workflow and action file at the commit where the
 # pull request branched off, not only of the files it changes, and checks
 # every pin of every workflow and action file the pull request changes, adds
