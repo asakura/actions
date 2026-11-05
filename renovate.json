@@ -63,6 +63,18 @@
     },
     {
       "customType": "regex",
+      "description": "Upstream Nix release tarball in the setup-nix action (NIX_SHA256 is bumped by hand); NixOS/nix publishes tags, not GitHub releases",
+      "managerFilePatterns": [
+        "/^\\.github/actions/[^/]+/action\\.ya?ml$/"
+      ],
+      "matchStrings": [
+        "NIX_VERSION: (?<currentValue>\\d+\\.\\d+\\.\\d+)\\n"
+      ],
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "NixOS/nix"
+    },
+    {
+      "customType": "regex",
       "description": "Commit-pinned nixpkgs flake references (github:NixOS/nixpkgs/<sha>#...) in workflows",
       "managerFilePatterns": [
         "/^\\.github/workflows/[^/]+\\.ya?ml$/"
@@ -88,14 +100,15 @@
       "enabled": false
     },
     {
-      "description": "Release binaries are verified against a sha256 pinned next to the version; Renovate cannot compute it, so the check fails until it is updated",
+      "description": "Release binaries and the Nix tarball are verified against a sha256 pinned next to the version; Renovate cannot compute it, so the check fails until it is updated",
       "matchDepNames": [
         "rhysd/actionlint",
         "zizmorcore/zizmor",
-        "DeterminateSystems/nix-installer"
+        "DeterminateSystems/nix-installer",
+        "NixOS/nix"
       ],
       "prBodyNotes": [
-        "**Manual step:** update the matching `*_SHA256` next to the version. Download the release asset, run `sha256sum` on it, and cross-check the result against the release's checksum file, digest or attestation. Until then the install step fails the sha256 check, by design."
+        "**Manual step:** update the matching `*_SHA256` next to the version. Download the release asset (for Nix, the x86_64-linux tarball from releases.nixos.org), run `sha256sum` on it, and cross-check the result against the release's checksum file, digest or attestation (for Nix, the `.sha256` file next to the tarball). Until then the install step fails the sha256 check, by design."
       ]
     }
   ]
