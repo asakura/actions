@@ -4,23 +4,27 @@
 # Determinate Nix and FlakeHub are off on purpose: this installs the upstream
 # Nix release, never logs in to FlakeHub, and sends no installer telemetry.
 # The installer binary is downloaded from its GitHub release and verified
-# against a pinned sha256 before it runs (no third-party action, no
-# `curl | sh`).
+# against a pinned sha256 before it runs.
 name: setup-nix
 description: Install community (upstream) Nix with a sha256-verified Determinate nix-installer binary, without Determinate Nix, FlakeHub or telemetry.
+
 inputs:
   github-token:
     description: GitHub token written to nix.conf access-tokens to avoid GitHub API rate limits.
     required: false
     default: ${{ github.token }}
+
 runs:
   using: composite
+
   steps:
     - name: Check the runner is linux x64
       shell: bash
+
       env:
         RUNNER_OS_NAME: ${{ runner.os }}
         RUNNER_ARCH_NAME: ${{ runner.arch }}
+
       run: |
         if [[ "${RUNNER_OS_NAME}" != "Linux" || "${RUNNER_ARCH_NAME}" != "X64" ]]; then
           echo "::error::setup-nix supports only Linux X64 runners, got ${RUNNER_OS_NAME} ${RUNNER_ARCH_NAME}"
@@ -29,11 +33,13 @@ runs:
 
     - name: Download and verify the nix-installer binary
       shell: bash
+
       env:
         # Bump the version and the hash together; the hash is the sha256 of
         # nix-installer-x86_64-linux in that release.
         NIX_INSTALLER_VERSION: 3.24.1
         NIX_INSTALLER_SHA256: c3866cc8ed9cf64546e77b5791160a87ec628467b17cd2746d3b2ed258262df6
+
       run: |
         set -euo pipefail
         installer="${RUNNER_TEMP}/nix-installer"
@@ -44,21 +50,20 @@ runs:
 
     - name: Install upstream Nix
       shell: bash
+
       env:
         GITHUB_TOKEN_INPUT: ${{ inputs.github-token }}
+
       run: |
         set -euo pipefail
-        # --prefer-upstream-nix: community Nix, no --determinate (no FlakeHub).
-        # --diagnostic-endpoint "": no telemetry.
-        # --init systemd and the daemon start are the defaults, spelled out.
-        # --extra-conf: access-tokens avoids GitHub rate limits when fetching
-        # github: flake inputs. The runner user is not made trusted.
-        sudo "${RUNNER_TEMP}/nix-installer" install linux \
-          --no-confirm \
-          --prefer-upstream-nix \
-          --diagnostic-endpoint "" \
-          --init systemd \
-          --extra-conf "access-tokens = github.com=${GITHUB_TOKEN_INPUT}"
+        args=(
+          --no-confirm
+          --prefer-upstream-nix # community Nix, no --determinate (no FlakeHub)
+          --diagnostic-endpoint "" # no telemetry
+          --init systemd # default spelled out
+          --extra-conf "access-tokens = github.com=${GITHUB_TOKEN_INPUT}" # avoids GitHub rate limits when fetching
+        )
+        sudo "${RUNNER_TEMP}/nix-installer" install linux "${args[@]}"
 
     - name: Add Nix to PATH
       shell: bash
