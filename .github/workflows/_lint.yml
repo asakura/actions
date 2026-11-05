@@ -116,12 +116,14 @@ jobs:
 
       # Every SHA pin must end with exactly "# vX.Y.Z"; a failing line gets a
       # suggested comment when a tag points at its commit. Prints gcc-style
-      # findings, like actionlint, and the suggested fixes as a diff for the
-      # suggestion plan.
+      # findings, like actionlint. The suggested fixes are written as a diff
+      # only where the suggestion plan reads it, the condition of that step:
+      # not on push runs, and not on pull requests from forks.
       - name: pin comments
         id: pin_comments
         if: ${{ !cancelled() && steps.changes.outputs.workflows == 'true' }}
         env:
+          WRITE_PINS_DIFF: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
           PINS_DIFF: ${{ runner.temp }}/lint/pin-comments.diff
         run: |
           .github/scripts/check-pin-comments.sh 2>&1 \
