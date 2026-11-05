@@ -64,11 +64,7 @@ later commit replaces is wasted work. Pull requests grow through follow-up
 pushes, so a check done only when opening one misses that. A check run
 differently from CI (offline instead of online, other flags) can pass what
 CI fails. The owner decides on the reasons a proposal gives, so an
-unchecked premise leads to a wrong decision. One pull request that grew
-this way went from one fix to six changes and about 1,000 lines. It
-included a format that a later commit replaced, and a policy justified by
-a tool behavior the repository's config disables. It had to be split
-before anyone could review it.
+unchecked premise leads to a wrong decision.
 
 ## Before removing a safeguard
 
