@@ -25,7 +25,10 @@ The `uses:` line ends with `# <ref>`, one word without spaces, for example `v29`
 The lint workflow accepts this only while no `vX.Y.Z` tag of that repository points at the pinned commit; once one does, it asks for `# vX.Y.Z` and no marker instead.
 A marker after the ref on the `uses:` line itself fails the lint, with a suggestion that moves it to its own line above.
 A marker line that is not directly above a pin, has other text, is indented differently from the `uses:` line below it, or sits above a line that does not end with `# <ref>` fails the lint too.
-The same action and `<ref>` must keep the same commit, just like a version.
+A version must keep the same commit: the lint workflow fails a pull request that pins an action and `vX.Y.Z` to another commit than the merge base, or to two commits.
+A pin with the marker is exempt from that check, because upstream moves `v29` or `stable` on purpose, so a bump of such a pin to a newer commit passes.
+A marker added to a `# vX.Y.Z` pin does not exempt it.
+For a branch ref such as `stable`, this lint therefore has no SHA check at all: nothing verifies where the new commit comes from, so review every bump of such a pin yourself.
 Renovate reads the first comment of the `uses:` line as the tag.
 
 Units are added incrementally; see each unit's section below once it lands.

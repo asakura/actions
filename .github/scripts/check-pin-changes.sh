@@ -16,15 +16,21 @@
 # Reads the pins of every workflow and action file at the commit where the
 # pull request branched off, not only of the files it changes, and checks
 # every pin of every workflow and action file the pull request changes, adds
-# or renames against them: a pin of the same action with the same ref but
+# or renames against them: a pin of the same action with the same version but
 # another commit is an error, wherever the old pin was. A release always has a
-# new version, so this is a re-pointed tag or rewritten history; an exception
-# pin follows its <ref> the same way. A pull request that pins one action and
-# ref to two commits in its own files is an error too. The merge base is where
-# the pull request branched off (BASE_SHA may be newer); its file list comes
-# from the git trees API and its files from the contents API, which need no
-# more than contents: read. Prints gcc-style findings; exits 1 when there are
-# any.
+# new version, so this is a re-pointed tag or rewritten history. A pull request
+# that pins one action and version to two commits in its own files is an error
+# too. An exception pin names a ref that upstream moves on purpose (a major tag
+# or a branch), so a new commit for the same action and ref is not an error:
+# two pins are left uncompared only when both carry the marker, the one at the
+# merge base and the one in the pull request, each decided by the marker above
+# its own line. A marker added in the pull request therefore does not excuse
+# the new commit of a pin that had none at the merge base, and pin-lines.sh
+# never makes a "# vX.Y.Z" pin an exception.
+# The merge base is where the pull request branched off (BASE_SHA may be
+# newer); its file list comes from the git trees API and its files from the
+# contents API, which need no more than contents: read. Prints gcc-style
+# findings; exits 1 when there are any.
 set -euo pipefail
 
 : "${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"
@@ -83,7 +89,8 @@ describe='def describe($pins): $pins | group_by(.sha)
 findings=$(jq -rs --slurpfile base "${work}/base.jsonl" "${describe}"'
     def named($pin): if $pin.exception then "ref \($pin.ref)" else $pin.ref end;
     . as $head
-    | def same($pin): select(.action == $pin.action and .ref == $pin.ref);
+    # Pins of the same action and ref, unless both are exceptions.
+    | def same($pin): select(.action == $pin.action and .ref == $pin.ref and (.exception and $pin.exception | not));
     # Pins whose version or ref was another commit at the merge base.
     [$head[] as $pin
         | [$base[] | same($pin)] as $old

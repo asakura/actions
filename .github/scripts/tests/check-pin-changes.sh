@@ -4,7 +4,8 @@
 # commit than at the merge base is an error in a changed, new or renamed file,
 # wherever the old pin was; so are two commits for one version in one pull
 # request. An exception pin ("# <ref>" under a marker line above it, see
-# check-pin-comments.sh) follows its <ref> the same way.
+# check-pin-comments.sh) names a ref upstream moves on purpose, so it is
+# exempt, and a marker does not make a vX.Y.Z pin exempt.
 set -euo pipefail
 
 tests=$(cd "$(dirname "$0")" && pwd)
@@ -112,8 +113,9 @@ cat >"${tmp}/files.json" <<'JSON'
 JSON
 check "pins that agree with the merge base and with each other" "" changes
 
-# other/ex follows the ref "stable" at the merge base: the same ref at another
-# commit is an error, another ref is not.
+# other/ex follows the ref "stable" at the merge base, as an exception: the
+# same ref at another commit is not an error (upstream moves it on purpose),
+# and neither is another ref.
 cat >"${tmp}/repo/.github/workflows/f.yml" <<YAML
 steps:
   ${mark}
@@ -124,11 +126,47 @@ YAML
 cat >"${tmp}/files.json" <<'JSON'
 [{"filename": ".github/workflows/f.yml", "status": "added"}]
 JSON
-check "an exception pin at another commit than the merge base, same ref" \
-    ".github/workflows/f.yml:3:59: error: other/ex@4444444 is pinned as ref stable, but at the merge base ref stable was 3333333 (.github/workflows/e.yml:3): the same version or ref must be the same commit, so a tag was re-pointed or history was rewritten [pin-changed]
-  - uses: other/ex@${four} # stable
+check "an exception pin at another commit than the merge base, same ref" "" changes
+
+# The same ref at two commits in the pull request's own files is no error for
+# exception pins either.
+cat >"${tmp}/repo/.github/workflows/g.yml" <<YAML
+steps:
+  ${mark}
+  - uses: other/ex@${two} # stable
+YAML
+cat >"${tmp}/files.json" <<'JSON'
+[{"filename": ".github/workflows/f.yml", "status": "added"},
+ {"filename": ".github/workflows/g.yml", "status": "added"}]
+JSON
+check "exception pins of one ref at two commits in the pull request" "" changes
+
+# A marker added above a pin that is a vX.Y.Z at the merge base does not excuse
+# its new commit: the marker makes no vX.Y.Z pin an exception.
+cat >"${tmp}/repo/.github/workflows/h.yml" <<YAML
+steps:
+  ${mark}
+  - uses: other/act@${four} # v2.0.0
+YAML
+cat >"${tmp}/files.json" <<'JSON'
+[{"filename": ".github/workflows/h.yml", "status": "added"}]
+JSON
+check "a marker above a re-pointed vX.Y.Z pin does not exempt it" \
+    ".github/workflows/h.yml:3:60: error: other/act@4444444 is pinned as v2.0.0, but at the merge base v2.0.0 was 3333333 (.github/workflows/a.yml:5): the same version or ref must be the same commit, so a tag was re-pointed or history was rewritten [pin-changed]
+  - uses: other/act@${four} # v2.0.0
 [exit status 1]" \
     changes
+
+# Without its marker, a pin whose comment is no vX.Y.Z has no ref to compare;
+# check-pin-comments.sh fails it for the missing comment.
+cat >"${tmp}/repo/.github/workflows/i.yml" <<YAML
+steps:
+  - uses: other/ex@${four} # stable
+YAML
+cat >"${tmp}/files.json" <<'JSON'
+[{"filename": ".github/workflows/i.yml", "status": "added"}]
+JSON
+check "a pin without marker and without vX.Y.Z has no ref to compare" "" changes
 
 echo '{"truncated": true, "tree": []}' >"${tmp}/trees.json"
 check "a truncated tree is an error" \
