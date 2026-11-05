@@ -238,6 +238,8 @@ jobs:
           OUTCOME_TESTS: ${{ steps.tests.outcome }}
           OUTCOME_MDFORMAT: ${{ steps.mdformat.outcome }}
           OUTCOME_SUGGESTIONS: ${{ steps.suggestions.outcome }}
+          LINT_DIR: ${{ runner.temp }}/lint
+          MAX_OUTPUT_CHARS: "12000"
         run: .github/scripts/lint-report.sh
 
       - name: Upload lint report
