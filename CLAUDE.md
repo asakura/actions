@@ -19,6 +19,18 @@ the rules; if a case seems to need an exception, ask instead of deciding alone.
   repo that bumps the pin.
 - Every amend updates everything that describes the change: the commit
   message, the PR body and the code comments it touches.
+- A fix applies a rule, not an instance. Before opening it, `git grep` the
+  whole repository for the pattern and fix every match in that PR, or list each
+  one left with the reason. Instances named in a request are where to start,
+  not the scope.
+- Editing a file means checking the whole file against this CLAUDE.md, not only
+  your hunk; code near your change is not a template. Fix what you find in a
+  separate PR, or list it in the PR body.
+- A violation of a rule here is a bug, not an optional cleanup.
+
+**Why:** the fix that made `LINT_DIR` and `MAX_OUTPUT_CHARS` required in
+`lint-report.sh` left 10 matches of the same violation in that file, two of
+them copied in from the surrounding lines after the rule existed.
 
 ## Before removing a safeguard
 
@@ -125,7 +137,13 @@ it or cut the feature that makes it hard to follow. In practice:
   environment variables, and structured data as JSON read with `jq`;
 - every input the caller passes is required (`: "${NAME:?…}"`), with no
   hidden default. Variables GitHub sets (`RUNNER_TEMP`, `GITHUB_OUTPUT`,
-  `GITHUB_REPOSITORY`, …) are not inputs.
+  `GITHUB_REPOSITORY`, …) are not inputs. This covers every way to write a
+  default: `${NAME:-x}`, `${NAME-x}`, an input documented as "optional", and,
+  in test fixtures, a jq `// value` that fills in a field the fixture didn't
+  state. jq's `//` stays only where absence is part of the data (a format or
+  API that omits a field, an empty array, or an error message reporting the
+  missing field), with a comment saying so.
+  `git grep -nE '\$\{[A-Za-z_]+:?-' .github` returns nothing.
 
 **Why:** the owner reviews every line that runs with this repository's token.
 A script that takes an hour to follow gets approved unread, and code nobody
