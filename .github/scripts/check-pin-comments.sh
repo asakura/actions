@@ -1,10 +1,16 @@
 #!/usr/bin/env bash
-# Require the comment "# vX.Y.Z" on every SHA pin, and find the one it should be.
+# Require the comment "# vX.Y.Z" on every SHA pin, or the documented exception,
+# and find the comment it should be.
 #
 # Usage: check-pin-comments.sh | annotate-gcc.sh
 # Run from the repository root. Checks every "uses: owner/repo[/path]@<sha>" in
 # .github/workflows/*.y{a,}ml and .github/actions/*/action.y{a,}ml, whatever
-# the action; the line must end with exactly "# vX.Y.Z" (digits only).
+# the action; the line must end with exactly "# vX.Y.Z" (digits only), or with
+# the exception for an upstream that publishes no vX.Y.Z tag:
+#   uses: owner/repo@<sha> # <ref> # pin-comment: no vX.Y.Z tag upstream
+# where <ref> is the upstream tag or branch the commit was taken from. The
+# exception is accepted only while no vX.Y.Z tag of that repository points at
+# the pinned commit; when one does, it is an error and the fix is "# vX.Y.Z".
 # Env:
 #   WRITE_PINS_DIFF  "true" to write the suggested fixes to PINS_DIFF, "false"
 #                    not to; anything else is an error. Pass true only where
@@ -18,10 +24,11 @@
 # one it asks "git ls-remote --tags" for the vX.Y.Z tags that point at the
 # pinned commit (annotated tags by their peeled commit), takes the highest by
 # "sort -V" and suggests replacing only the comment with it; with no such tag
-# there is no suggestion. Only failing lines are looked up. Exits 1 when any
-# line fails. The finding's message says what is wrong with the line and what
-# the fix changes; the same message is the note on the fix's hunk in PINS_DIFF
-# (text after the closing "@@"), which becomes the text of the suggestion.
+# there is no suggestion. Only failing lines and exceptions are looked up.
+# Exits 1 when any line fails. The finding's message says what is wrong with
+# the line and what the fix changes; the same message is the note on the fix's
+# hunk in PINS_DIFF (text after the closing "@@"), which becomes the text of
+# the suggestion.
 set -euo pipefail
 
 : "${PINS_DIFF:?PINS_DIFF is required}"
@@ -58,6 +65,7 @@ for file in "${files[@]}"; do
         prefix=$(field "${pin}" prefix)
         text=$(field "${pin}" text)
         comment=$(field "${pin}" comment)
+        exception=$(field "${pin}" exception)
 
         IFS=/ read -r owner repo _ <<<"${action}"
         tag=$(git ls-remote --tags "https://github.com/${owner}/${repo}" |
@@ -68,7 +76,12 @@ for file in "${files[@]}"; do
             }' | sort -V | tail -n 1)
 
         pin="${action}@${sha:0:7}"
-        if [[ -z ${comment} ]]; then
+        if [[ ${exception} == true ]]; then
+            # Allowed only while upstream has no vX.Y.Z tag at this commit.
+            [[ -n ${tag} ]] || continue
+            problem="${pin} claims \"no vX.Y.Z tag upstream\", but the exception is unnecessary"
+            change="change the comment to"
+        elif [[ -z ${comment} ]]; then
             problem="${pin} has no version comment"
             change=add
         else
@@ -81,7 +94,7 @@ for file in "${files[@]}"; do
                 "${file}" "${file}" "${line}" "${line}" "${message}" "${text}" "${prefix}" "${tag}" \
                 >>"${work}/fixes.diff"
         else
-            message="${problem}, and no vX.Y.Z tag of ${owner}/${repo} points at this commit; every pin needs exactly \"# vX.Y.Z\"."
+            message="${problem}, and no vX.Y.Z tag of ${owner}/${repo} points at this commit; every pin needs exactly \"# vX.Y.Z\", or, when upstream publishes no vX.Y.Z tag, \"# <ref> # pin-comment: no vX.Y.Z tag upstream\"."
         fi
         printf '%s:%s:%s: error: %s [pin-comment]\n%s\n\n' \
             "${file}" "${line}" "$((${#prefix} + 1))" "${message}" "${text}"

@@ -3,7 +3,8 @@
 # Test check-pin-changes.sh: a pin with the same action and version but another
 # commit than at the merge base is an error in a changed, new or renamed file,
 # wherever the old pin was; so are two commits for one version in one pull
-# request.
+# request. An exception pin ("# <ref> # pin-comment: no vX.Y.Z tag upstream")
+# follows its <ref> the same way.
 set -euo pipefail
 
 tests=$(cd "$(dirname "$0")" && pwd)
@@ -48,12 +49,17 @@ cat >"${tmp}/base/.github/workflows/b.yml" <<YAML
 steps:
   - uses: actions/checkout@${two} # v7
 YAML
+cat >"${tmp}/base/.github/workflows/e.yml" <<YAML
+steps:
+  - uses: other/ex@${three} # stable # pin-comment: no vX.Y.Z tag upstream
+YAML
 cat >"${tmp}/trees.json" <<'JSON'
 {"truncated": false, "tree": [
   {"path": ".github", "type": "tree"},
   {"path": ".github/actions/x/action.yml", "type": "blob"},
   {"path": ".github/workflows/a.yml", "type": "blob"},
   {"path": ".github/workflows/b.yml", "type": "blob"},
+  {"path": ".github/workflows/e.yml", "type": "blob"},
   {"path": ".github/workflows/notes.txt", "type": "blob"},
   {"path": "README.md", "type": "blob"}]}
 JSON
@@ -80,7 +86,7 @@ cat >"${tmp}/files.json" <<'JSON'
  {"filename": "README.md", "status": "modified"}]
 JSON
 check "a renamed file with the same pins, a new file with a pin of another commit" \
-    ".github/workflows/new.yml:2:69: error: actions/checkout@2222222 is pinned as v7.0.1, but at the merge base v7.0.1 was 1111111 (.github/actions/x/action.yml:2, .github/workflows/a.yml:4): the same version must be the same commit, so a tag was re-pointed or history was rewritten [pin-changed]
+    ".github/workflows/new.yml:2:69: error: actions/checkout@2222222 is pinned as v7.0.1, but at the merge base v7.0.1 was 1111111 (.github/actions/x/action.yml:2, .github/workflows/a.yml:4): the same version or ref must be the same commit, so a tag was re-pointed or history was rewritten [pin-changed]
   - uses: \"actions/checkout@${two}\" # v7.0.1
 [exit status 1]" \
     changes
@@ -90,10 +96,10 @@ cat >"${tmp}/files.json" <<'JSON'
  {"filename": ".github/workflows/d.yml", "status": "added"}]
 JSON
 check "two commits for one version in the pull request's own files" \
-    ".github/workflows/c.yml:2:60: error: other/new@3333333 is pinned as v1.0.0, but this pull request also pins v1.0.0 to 4444444 (.github/workflows/d.yml:2): the same version must be the same commit [pin-changed]
+    ".github/workflows/c.yml:2:60: error: other/new@3333333 is pinned as v1.0.0, but this pull request also pins v1.0.0 to 4444444 (.github/workflows/d.yml:2): the same version or ref must be the same commit [pin-changed]
   - uses: other/new@${three} # v1.0.0
 
-.github/workflows/d.yml:2:60: error: other/new@4444444 is pinned as v1.0.0, but this pull request also pins v1.0.0 to 3333333 (.github/workflows/c.yml:2): the same version must be the same commit [pin-changed]
+.github/workflows/d.yml:2:60: error: other/new@4444444 is pinned as v1.0.0, but this pull request also pins v1.0.0 to 3333333 (.github/workflows/c.yml:2): the same version or ref must be the same commit [pin-changed]
   - uses: other/new@${four} # v1.0.0
 [exit status 1]" \
     changes
@@ -103,6 +109,19 @@ cat >"${tmp}/files.json" <<'JSON'
  {"filename": ".github/workflows/c.yml", "status": "added"}]
 JSON
 check "pins that agree with the merge base and with each other" "" changes
+
+# other/ex follows the ref "stable" at the merge base: the same ref at another
+# commit is an error, another ref is not.
+printf 'steps:\n  - uses: other/ex@%s # stable # pin-comment: no vX.Y.Z tag upstream\n  - uses: other/ex@%s # next # pin-comment: no vX.Y.Z tag upstream\n' \
+    "${four}" "${four}" >"${tmp}/repo/.github/workflows/f.yml"
+cat >"${tmp}/files.json" <<'JSON'
+[{"filename": ".github/workflows/f.yml", "status": "added"}]
+JSON
+check "an exception pin at another commit than the merge base, same ref" \
+    ".github/workflows/f.yml:2:59: error: other/ex@4444444 is pinned as ref stable, but at the merge base ref stable was 3333333 (.github/workflows/e.yml:2): the same version or ref must be the same commit, so a tag was re-pointed or history was rewritten [pin-changed]
+  - uses: other/ex@${four} # stable # pin-comment: no vX.Y.Z tag upstream
+[exit status 1]" \
+    changes
 
 echo '{"truncated": true, "tree": []}' >"${tmp}/trees.json"
 check "a truncated tree is an error" \
