@@ -14,7 +14,9 @@
 # pinned commit (annotated tags by their peeled commit), takes the highest by
 # "sort -V" and suggests replacing only the comment with it; with no such tag
 # there is no suggestion. Only failing lines are looked up. Exits 1 when any
-# line fails.
+# line fails. The finding's message says what is wrong with the line and what
+# the fix changes; the same message is the note on the fix's hunk in PINS_DIFF
+# (text after the closing "@@"), which becomes the text of the suggestion.
 set -euo pipefail
 
 : "${PINS_DIFF:?PINS_DIFF is required}"
@@ -52,21 +54,24 @@ for file in "${files[@]}"; do
                 if ($2 ~ /^v[0-9]+\.[0-9]+\.[0-9]+$/) print $2
             }' | sort -V | tail -n 1)
 
+        pin="${action}@${sha:0:7}"
         if [[ -z ${comment} ]]; then
-            problem="has no comment"
+            problem="${pin} has no version comment"
+            change=add
         else
-            problem="has the comment \"${comment}\""
+            problem="${pin} has the comment \"${comment}\", but it must be the exact tag"
+            change="change it to"
         fi
         if [[ -n ${tag} ]]; then
-            advice="${tag} points at this commit; use \"# ${tag}\""
-            printf -- '--- %s\n+++ %s\n@@ -%s +%s @@\n-%s\n+%s # %s\n' \
-                "${file}" "${file}" "${line}" "${line}" "${text}" "${prefix}" "${tag}" \
+            message="${problem}; ${tag} points at this commit, so the fix is to ${change} \"# ${tag}\"."
+            printf -- '--- %s\n+++ %s\n@@ -%s +%s @@ %s\n-%s\n+%s # %s\n' \
+                "${file}" "${file}" "${line}" "${line}" "${message}" "${text}" "${prefix}" "${tag}" \
                 >>"${work}/fixes.diff"
         else
-            advice="no vX.Y.Z tag of ${owner}/${repo} points at this commit"
+            message="${problem}, and no vX.Y.Z tag of ${owner}/${repo} points at this commit; every pin needs exactly \"# vX.Y.Z\"."
         fi
-        printf '%s:%s:%s: error: %s@%s %s, but every pin needs exactly "# vX.Y.Z"; %s [pin-comment]\n%s\n\n' \
-            "${file}" "${line}" "$((${#prefix} + 1))" "${action}" "${sha:0:7}" "${problem}" "${advice}" "${text}"
+        printf '%s:%s:%s: error: %s [pin-comment]\n%s\n\n' \
+            "${file}" "${line}" "$((${#prefix} + 1))" "${message}" "${text}"
         status=1
     done <<<"${failing}"
 done

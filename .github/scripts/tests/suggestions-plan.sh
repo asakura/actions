@@ -176,7 +176,7 @@ check "nothing to do, no plan files" absent exists "${tmp}/plan/review.json"
 cat >"${tmp}/lint/pin-comments.diff" <<'DIFF'
 --- .github/workflows/x.yml
 +++ .github/workflows/x.yml
-@@ -3 +3 @@
+@@ -3 +3 @@ a/b@0123456 has the comment "# v1", but it must be the exact tag; v1.2.3 points at this commit, so the fix is to change it to "# v1.2.3".
 -      - uses: a/b@0123456789012345678901234567890123456789 # v1
 +      - uses: a/b@0123456789012345678901234567890123456789 # v1.2.3
 DIFF
@@ -185,8 +185,8 @@ echo '[]' | threads
 plan
 check "the pin comment fix is posted on its line" '{"path":".github/workflows/x.yml","line":3,"start_line":null}' \
     jq -c '.comments[] | {path, line, start_line}' "${tmp}/plan/review.json"
-check "the pin comment suggestion body" '<!-- lint-suggestion tool=pins -->
-pins would format this line like this:
+check "the pin comment suggestion says what is wrong with the line" '<!-- lint-suggestion tool=pins -->
+a/b@0123456 has the comment "# v1", but it must be the exact tag; v1.2.3 points at this commit, so the fix is to change it to "# v1.2.3".
 
 ```suggestion
       - uses: a/b@0123456789012345678901234567890123456789 # v1.2.3

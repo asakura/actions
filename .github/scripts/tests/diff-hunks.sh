@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck source-path=SCRIPTDIR
-# Test diff-hunks.sh on an shfmt diff and an mdformat diff.
+# Test diff-hunks.sh on an shfmt diff, an mdformat diff and a diff whose hunk
+# header carries a note.
 set -euo pipefail
 
 tests=$(cd "$(dirname "$0")" && pwd)
@@ -25,7 +26,7 @@ diff a.sh.orig a.sh
  fi
 DIFF
 check "one hunk; context lines are part of it" \
-    '{"tool":"shfmt","path":"a.sh","start":1,"end":3,"lines":["if true; then","    echo hi","fi"]}' \
+    '{"tool":"shfmt","path":"a.sh","start":1,"end":3,"lines":["if true; then","    echo hi","fi"],"note":""}' \
     hunks shfmt "" <"${tmp}/shfmt.txt"
 
 # mdformat-diff.sh labels them a/ and b/. Two hunks; the second has a
@@ -44,8 +45,20 @@ cat >"${tmp}/mdformat.txt" <<'DIFF'
 DIFF
 # shellcheck disable=SC2016 # the backticks are Markdown, not a command.
 check "two hunks; the b/ prefix is stripped" \
-    '{"tool":"mdformat","path":"doc/x.md","start":2,"end":3,"lines":["one","","```two```"]}
-{"tool":"mdformat","path":"doc/x.md","start":9,"end":9,"lines":["- item"]}' \
+    '{"tool":"mdformat","path":"doc/x.md","start":2,"end":3,"lines":["one","","```two```"],"note":""}
+{"tool":"mdformat","path":"doc/x.md","start":9,"end":9,"lines":["- item"],"note":""}' \
     hunks mdformat b/ <"${tmp}/mdformat.txt"
+
+# check-pin-comments.sh puts the reason for a change after the hunk header.
+cat >"${tmp}/pins.diff" <<'DIFF'
+--- .github/workflows/x.yml
++++ .github/workflows/x.yml
+@@ -3 +3 @@ a/b@0123456 has no version comment; v1.2.3 points at this commit
+-      - uses: a/b@0123456789012345678901234567890123456789
++      - uses: a/b@0123456789012345678901234567890123456789 # v1.2.3
+DIFF
+check "the text after the header is the note" \
+    '{"tool":"pins","path":".github/workflows/x.yml","start":3,"end":3,"lines":["      - uses: a/b@0123456789012345678901234567890123456789 # v1.2.3"],"note":"a/b@0123456 has no version comment; v1.2.3 points at this commit"}' \
+    hunks pins "" <"${tmp}/pins.diff"
 
 exit "${failed}"
