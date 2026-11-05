@@ -20,9 +20,10 @@ the rules; if a case seems to need an exception, ask instead of deciding alone.
 - Every amend updates everything that describes the change: the commit
   message, the PR body and the code comments it touches.
 - A fix applies a rule, not an instance. Before opening it, `git grep` the
-  whole repository for the pattern and fix every match in that PR, or list each
-  one left with the reason. Instances named in a request are where to start,
-  not the scope.
+  whole repository for the pattern and fix every match of that one rule in
+  that PR, or list each one left with the reason. Problems with other rules
+  found on the way go to their own PRs. Instances named in a request are where
+  to start, not the scope.
 - Editing a file means checking the whole file against this CLAUDE.md, not only
   your hunk; code near your change is not a template. Fix what you find in a
   separate PR, or list it in the PR body.
@@ -32,6 +33,42 @@ the rules; if a case seems to need an exception, ask instead of deciding alone.
 lines around a change are copied as a template, so a violation next to an
 edit spreads with it. A fix that covers only the instances someone named
 leaves the reader believing the rule holds.
+
+## Pull request scope
+
+- A pull request is one change: its title names it without "and", and
+  every commit serves it. Check this before every push to an open pull
+  request, not only when opening it.
+- A commit that makes the pull request's change correct (a bug in the code
+  it adds, a review comment about that code) goes into it as a new commit.
+  Anything else, including a bug found in code the pull request doesn't
+  change or an extension a review suggested, is a new pull request,
+  stacked on the open one when it depends on it. The owner asking to add
+  something to an open pull request covers that one change.
+- A change that replaces what an unmerged commit introduced (a format, an
+  input, a message) means the design was not settled. Stop and ask the
+  owner how to go on before writing it.
+- Before building a new format that checked files will contain, run every
+  check that reads those files on an example, the way CI runs it.
+- A proposal names what it relies on (a tool's behavior, a setting) and
+  where that was checked.
+- A stack is one branch per part, each based on the previous one, each body
+  starting "Part N of M" with links to its neighbours. After a part merges,
+  the next one needs a rebase onto `main` and a force-push, which the owner
+  chooses each time.
+
+**Why:** the owner reviews every line, and review gets harder with every
+unrelated change mixed in. A mixed pull request can't be approved in part:
+one objection blocks everything else in it. Reviewing a design that a
+later commit replaces is wasted work. Pull requests grow through follow-up
+pushes, so a check done only when opening one misses that. A check run
+differently from CI (offline instead of online, other flags) can pass what
+CI fails. The owner decides on the reasons a proposal gives, so an
+unchecked premise leads to a wrong decision. One pull request that grew
+this way went from one fix to six changes and about 1,000 lines. It
+included a format that a later commit replaced, and a policy justified by
+a tool behavior the repository's config disables. It had to be split
+before anyone could review it.
 
 ## Before removing a safeguard
 
