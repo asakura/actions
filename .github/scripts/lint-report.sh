@@ -6,8 +6,8 @@
 #   LINT_DIR           directory with <tool>.txt outputs; report.md is
 #                      written there.
 #   OUTCOME_ACTIONLINT, OUTCOME_ZIZMOR, OUTCOME_PIN_COMMENTS,
-#   OUTCOME_PIN_CHANGES, OUTCOME_SHELLCHECK, OUTCOME_SHFMT, OUTCOME_TESTS,
-#   OUTCOME_MDFORMAT
+#   OUTCOME_PIN_CHANGES, OUTCOME_DEFAULTS, OUTCOME_SHELLCHECK, OUTCOME_SHFMT,
+#   OUTCOME_TESTS, OUTCOME_MDFORMAT
 #                      steps.<id>.outcome of each check.
 #   OUTCOME_CHANGES    steps.changes.outcome.
 #   OUTCOME_SUGGESTIONS steps.suggestions.outcome.
@@ -29,7 +29,7 @@ count_findings() {
     local file="${lint_dir}/$1.txt"
     local pattern
     case "$1" in
-        actionlint | pin-comments | pin-changes | shellcheck) pattern='^[^:]+:[0-9]+:[0-9]+: ' ;;
+        actionlint | pin-comments | pin-changes | defaults | shellcheck) pattern='^[^:]+:[0-9]+:[0-9]+: ' ;;
         zizmor) pattern='^(error|warning|help|info|note)\[' ;;
         shfmt | mdformat) pattern='^@@ ' ;;
         tests) pattern='^FAIL: ' ;;
@@ -45,12 +45,13 @@ count_findings() {
     fi
 }
 
-tools=(actionlint zizmor pin-comments pin-changes shellcheck shfmt tests mdformat)
+tools=(actionlint zizmor pin-comments pin-changes defaults shellcheck shfmt tests mdformat)
 outcomes=(
     "${OUTCOME_ACTIONLINT:?OUTCOME_ACTIONLINT is required}"
     "${OUTCOME_ZIZMOR:?OUTCOME_ZIZMOR is required}"
     "${OUTCOME_PIN_COMMENTS:?OUTCOME_PIN_COMMENTS is required}"
     "${OUTCOME_PIN_CHANGES:?OUTCOME_PIN_CHANGES is required}"
+    "${OUTCOME_DEFAULTS:?OUTCOME_DEFAULTS is required}"
     "${OUTCOME_SHELLCHECK:?OUTCOME_SHELLCHECK is required}"
     "${OUTCOME_SHFMT:?OUTCOME_SHFMT is required}"
     "${OUTCOME_TESTS:?OUTCOME_TESTS is required}"

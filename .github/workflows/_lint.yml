@@ -143,6 +143,16 @@ jobs:
             | tee "${RUNNER_TEMP}/lint/pin-changes.txt" \
             | .github/scripts/annotate-gcc.sh
 
+      # No variable of this repository's scripts, workflows or actions may have
+      # a hidden default: every input is required (CLAUDE.md, Scripts).
+      - name: shell defaults
+        id: defaults
+        if: ${{ !cancelled() && steps.changes.outputs.workflows == 'true' }}
+        run: |
+          .github/scripts/check-shell-defaults.sh 2>&1 \
+            | tee "${RUNNER_TEMP}/lint/defaults.txt" \
+            | .github/scripts/annotate-gcc.sh
+
       - name: shellcheck
         id: shellcheck
         if: ${{ !cancelled() && steps.changes.outputs.scripts == 'true' }}
@@ -233,6 +243,7 @@ jobs:
           OUTCOME_ZIZMOR: ${{ steps.zizmor.outcome }}
           OUTCOME_PIN_COMMENTS: ${{ steps.pin_comments.outcome }}
           OUTCOME_PIN_CHANGES: ${{ steps.pin_changes.outcome }}
+          OUTCOME_DEFAULTS: ${{ steps.defaults.outcome }}
           OUTCOME_SHELLCHECK: ${{ steps.shellcheck.outcome }}
           OUTCOME_SHFMT: ${{ steps.shfmt.outcome }}
           OUTCOME_TESTS: ${{ steps.tests.outcome }}
