@@ -19,23 +19,32 @@ plan() {
         "${tests}/../suggestions-plan.sh" >/dev/null
 }
 
-# Write ${tmp}/threads.json from the threads given as a JSON array. Each
-# thread names only what sets it apart; the rest is an open, current,
-# unminimized github-actions thread without replies.
+# Write ${tmp}/threads.json from the threads given as a JSON array. Every
+# thread states id, path, start_line, line, body, resolved, outdated,
+# minimized, author and replied; a thread that lacks one fails the test.
 threads() {
-    jq '{data: {repository: {pullRequest: {reviewThreads: {nodes: map({
-        id,
-        isResolved: (.resolved // false),
-        isOutdated: (.outdated // false),
-        path,
-        startLine: (.start_line // null),
-        line,
-        comments: {nodes: (
-            [{id: "N\(.id)", databaseId: 100, body,
-              isMinimized: (.minimized // false),
-              author: {login: (.author // "github-actions")}}]
-            + if .replied then [{author: {login: "github-actions"}}] else [] end)}
-    })}}}}}' >"${tmp}/threads.json"
+    jq '
+        ["id", "path", "start_line", "line", "body", "resolved", "outdated",
+         "minimized", "author", "replied"] as $required
+        | {data: {repository: {pullRequest: {reviewThreads: {nodes: map(
+            . as $thread
+            | ($required - keys) as $missing
+            | if ($missing | length) > 0
+              then error("thread \($thread.id // "?") lacks: \($missing | join(", "))")
+              else . end
+            | {
+                id,
+                isResolved: .resolved,
+                isOutdated: .outdated,
+                path,
+                startLine: .start_line,
+                line,
+                comments: {nodes: (
+                    [{id: "N\(.id)", databaseId: 100, body,
+                      isMinimized: .minimized,
+                      author: {login: .author}}]
+                    + if .replied then [{author: {login: "github-actions"}}] else [] end)}
+            })}}}}}' >"${tmp}/threads.json"
 }
 
 # Print line $2 of the body of planned comment $1.
@@ -101,23 +110,23 @@ mdformat would format this line like this:
 \`\`\`"
 jq -n --arg md "${md}" --arg sh "${sh}" --arg md_body "${md_body}" --arg md_line_body "${md_line_body}" '[
     # Exactly the suggestion the plan would post: kept, not posted again.
-    {id: "T1", path: "doc/x.md", start_line: 2, line: 3, body: $md_body},
+    {id: "T1", path: "doc/x.md", start_line: 2, line: 3, body: $md_body, resolved: false, outdated: false, minimized: false, author: "github-actions", replied: false},
     # The same for a one-line suggestion, whose startLine GitHub reports as
     # the line itself: kept.
-    {id: "T10", path: "doc/x.md", start_line: 9, line: 9, body: $md_line_body},
+    {id: "T10", path: "doc/x.md", start_line: 9, line: 9, body: $md_line_body, resolved: false, outdated: false, minimized: false, author: "github-actions", replied: false},
     # Outdated: retired; T3 has a reply already.
-    {id: "T2", outdated: true, path: "a.sh", line: null, body: $sh},
-    {id: "T3", outdated: true, path: "a.sh", line: null, body: $sh, replied: true},
+    {id: "T2", path: "a.sh", start_line: null, line: null, body: $sh, resolved: false, outdated: true, minimized: false, author: "github-actions", replied: false},
+    {id: "T3", path: "a.sh", start_line: null, line: null, body: $sh, resolved: false, outdated: true, minimized: false, author: "github-actions", replied: true},
     # Not ours, not a suggestion, minimized, resolved: left alone.
-    {id: "T4", outdated: true, path: "a.sh", line: null, body: $sh, author: "someone"},
-    {id: "T5", outdated: true, path: "a.sh", line: null, body: "a comment"},
-    {id: "T6", outdated: true, path: "a.sh", line: null, body: $sh, minimized: true},
-    {id: "T7", outdated: true, path: "a.sh", line: null, body: $sh, resolved: true},
+    {id: "T4", path: "a.sh", start_line: null, line: null, body: $sh, resolved: false, outdated: true, minimized: false, author: "someone", replied: false},
+    {id: "T5", path: "a.sh", start_line: null, line: null, body: "a comment", resolved: false, outdated: true, minimized: false, author: "github-actions", replied: false},
+    {id: "T6", path: "a.sh", start_line: null, line: null, body: $sh, resolved: false, outdated: true, minimized: true, author: "github-actions", replied: false},
+    {id: "T7", path: "a.sh", start_line: null, line: null, body: $sh, resolved: true, outdated: true, minimized: false, author: "github-actions", replied: false},
     # Current, but shfmt suggests nothing on line 9 now: retired.
-    {id: "T8", path: "a.sh", line: 9, body: $sh},
+    {id: "T8", path: "a.sh", start_line: null, line: 9, body: $sh, resolved: false, outdated: false, minimized: false, author: "github-actions", replied: false},
     # Current, on the lines of the shfmt hunk, but with other text: retired,
     # and the hunk is posted again.
-    {id: "T9", path: "a.sh", start_line: 1, line: 3, body: "\($sh)\nan older suggestion"}
+    {id: "T9", path: "a.sh", start_line: 1, line: 3, body: "\($sh)\nan older suggestion", resolved: false, outdated: false, minimized: false, author: "github-actions", replied: false}
 ]' | threads
 
 plan
@@ -181,7 +190,7 @@ pins would format this line like this:
 ```suggestion
       - uses: a/b@0123456789012345678901234567890123456789 # v1.2.3
 ```' jq -r '.comments[0].body' "${tmp}/plan/review.json"
-jq -n '[{id: "T1", path: ".github/workflows/x.yml", line: 3, body: "<!-- lint-suggestion tool=pins -->\nan older suggestion"}]' | threads
+jq -n '[{id: "T1", path: ".github/workflows/x.yml", start_line: null, line: 3, body: "<!-- lint-suggestion tool=pins -->\nan older suggestion", resolved: false, outdated: false, minimized: false, author: "github-actions", replied: false}]' | threads
 plan
 check "an older pin comment suggestion is retired" "T1	100	NT1	false	Resolved: pins no longer suggests this change at 1234567." \
     cat "${tmp}/plan/retire.tsv"
