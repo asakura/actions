@@ -36,7 +36,8 @@ else
     : "${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"
 
     # Both the new and the previous name count, so renames and deletions
-    # are seen too.
+    # are seen too. The API includes previous_filename only for renamed
+    # files, so its absence is normal and prints nothing.
     files=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files" \
         --jq '.[] | .filename, (.previous_filename // empty)')
 

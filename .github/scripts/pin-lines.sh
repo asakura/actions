@@ -16,6 +16,7 @@ jq -nRc '
     [inputs] | to_entries[]
     | .key as $index | .value as $text
     | ($text | capture("^(?<prefix>[ \\t]*(- +)?uses:[ \\t]+[\"\u0027]?(?<action>[A-Za-z0-9_-][A-Za-z0-9_.-]*/[A-Za-z0-9_.-]+(/[^\\s@#\"\u0027]+)?)@(?<sha>[0-9a-f]{40})[\"\u0027]?)(?<rest>\\s.*)?$"))
+    # rest, the optional group after the SHA, is null when nothing follows it.
     | (.rest // "") as $rest
     | {line: ($index + 1), action, sha, prefix, text: $text,
        comment: ($rest | sub("^\\s+"; "")),

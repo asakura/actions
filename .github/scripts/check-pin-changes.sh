@@ -29,7 +29,8 @@ scripts=$(dirname "$0")
 merge_base=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${BASE_SHA}...${HEAD_SHA}" --jq '.merge_base_commit.sha')
 
 # Changed workflow and action files that existed before, as "new path<TAB>old
-# path" (they differ for a rename).
+# path" (they differ for a rename). The API includes previous_filename only
+# for renamed files; for any other file the old path is the new one.
 files=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files" --jq '
     .[] | select(.status != "added" and .status != "removed")
     | select(.filename | test("^\\.github/(workflows/[^/]+|actions/[^/]+/action)\\.ya?ml$"))
