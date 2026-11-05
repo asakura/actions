@@ -83,7 +83,7 @@ runs:
           "trusted-users = root" # default spelled out; the runner user is not trusted
           "sandbox = true" # default spelled out
           "max-jobs = auto" # one build per CPU
-          "experimental-features = nix-command flakes" # nix run, nix build and flakes
+          "experimental-features = nix-command flakes pipe-operators" # nix run, nix build, flakes, and |> and <| in Nix code
           "substituters = https://cache.nixos.org" # default spelled out; no other cache
           "trusted-substituters =" # default spelled out; no cache can be enabled later
           "trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=" # default spelled out

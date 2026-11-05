@@ -54,5 +54,14 @@ jobs:
             exit 1
           fi
 
+      - name: Check pipe operators are enabled
+        run: |
+          length=$(nix eval --expr '[ 1 2 ] |> builtins.length')
+
+          if [[ "${length}" != 2 ]]; then
+            echo "::error::[ 1 2 ] |> builtins.length gave ${length}, expected 2"
+            exit 1
+          fi
+
       - name: Run a flake from the default cache
         run: nix run "github:NixOS/nixpkgs/0bb2eedc20e4739f29e8045034f2828ad7054f8f#hello"
