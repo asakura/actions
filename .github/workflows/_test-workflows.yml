@@ -44,5 +44,15 @@ jobs:
             exit 1
           fi
 
+      - name: Check nix.conf is the action's
+        run: |
+          # Not printed: it contains access-tokens.
+          config=$(nix config show)
+
+          if [[ -e /etc/nix/nix.custom.conf ]] || grep -qiE 'flakehub|determinate' <<<"${config}"; then
+            echo "::error::Nix has settings the action did not write (nix.custom.conf, FlakeHub or Determinate)"
+            exit 1
+          fi
+
       - name: Run a flake from the default cache
         run: nix run "github:NixOS/nixpkgs/0bb2eedc20e4739f29e8045034f2828ad7054f8f#hello"
