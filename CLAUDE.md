@@ -28,9 +28,10 @@ the rules; if a case seems to need an exception, ask instead of deciding alone.
   separate PR, or list it in the PR body.
 - A violation of a rule here is a bug, not an optional cleanup.
 
-**Why:** the fix that made `LINT_DIR` and `MAX_OUTPUT_CHARS` required in
-`lint-report.sh` left 10 matches of the same violation in that file, two of
-them copied in from the surrounding lines after the rule existed.
+**Why:** a rule fixed in one place stays broken everywhere else, and the
+lines around a change are copied as a template, so a violation next to an
+edit spreads with it. A fix that covers only the instances someone named
+leaves the reader believing the rule holds.
 
 ## Before removing a safeguard
 
@@ -70,6 +71,26 @@ exceptions nobody wrote down. A removal is only right if your reading of the
 rule, the request and the code are all right at once, and a wrong one takes
 away protection where the code is hardest to get right. A question costs one
 message; a confident wrong change costs a review, a revert and trust.
+
+## Write the present, not the history
+
+Files in the repository (code comments, README, CLAUDE.md, test names) say
+what is true now and why. How it got there (what it replaced, what was tried,
+the incident that led to a rule) goes in the commit message, the pull request
+body or an issue.
+
+- No wording that describes the code relative to an earlier version: "now",
+  "no longer", "the old form", "used to", "changed on purpose".
+- A Why gives the reason that holds today, not the story behind the rule.
+- Before calling text done, read it as someone who has the repository and
+  nothing else.
+
+**Why:** git records every change with its diff, author, date and discussion,
+and `git blame` leads from any line to the commit and pull request that
+explain it. A file is read as the present, so history in it is a second copy
+that nothing keeps in sync. It turns wrong with the next change and makes the
+reader work out what still applies. A reason told as an incident reads as
+covering that incident only.
 
 ## Be explicit; never rely on defaults
 
@@ -170,7 +191,8 @@ case, then closed with a comment saying what it showed.
 
 **Why:** GitHub's behavior is undocumented in places: a review thread whose
 lines only move stays current, and a one-line thread reports its `startLine`
-as its line, not null. Both broke code that looked right on review.
+as its line, not null. Code written from the documentation alone looks right
+on review and is still wrong.
 
 ## Installing tools
 
