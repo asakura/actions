@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Fail when a pull request changes the commit of a pin but not its version.
+# Fail when a pull request changes the commit of a pin but not its version or
+# ref.
 #
 # Usage: check-pin-changes.sh | annotate-gcc.sh
 # Run from the repository root, checked out at the pull request head.
@@ -9,17 +10,21 @@
 #   BASE_SHA           base branch commit of the pull request event.
 #   HEAD_SHA           head commit of the pull request.
 #   GH_TOKEN           token with contents: read and pull-requests: read.
-# Reads the "uses: ...@<sha> # vX.Y.Z" pins of every workflow and action file
-# at the commit where the pull request branched off, not only of the files it
-# changes, and checks every pin of every workflow and action file the pull
-# request changes, adds or renames against them: a pin of the same action with
-# the same version but another commit is an error, wherever the old pin was. A
-# release always has a new version, so this is a re-pointed tag or rewritten
-# history. A pull request that pins one action and version to two commits in
-# its own files is an error too. The merge base is where the pull request
-# branched off (BASE_SHA may be newer); its file list comes from the git trees
-# API and its files from the contents API, which need no more than
-# contents: read. Prints gcc-style findings; exits 1 when there are any.
+# A pin is "uses: ...@<sha> # vX.Y.Z", or an exception with the comment
+# "# <ref> # pin-comment: no vX.Y.Z tag upstream"; its "ref" is the version or
+# the <ref> (see pin-lines.sh).
+# Reads the pins of every workflow and action file at the commit where the
+# pull request branched off, not only of the files it changes, and checks
+# every pin of every workflow and action file the pull request changes, adds
+# or renames against them: a pin of the same action with the same ref but
+# another commit is an error, wherever the old pin was. A release always has a
+# new version, so this is a re-pointed tag or rewritten history; an exception
+# pin follows its <ref> the same way. A pull request that pins one action and
+# ref to two commits in its own files is an error too. The merge base is where
+# the pull request branched off (BASE_SHA may be newer); its file list comes
+# from the git trees API and its files from the contents API, which need no
+# more than contents: read. Prints gcc-style findings; exits 1 when there are
+# any.
 set -euo pipefail
 
 : "${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"
@@ -50,7 +55,7 @@ if [[ -n ${base_files} ]]; then
         gh api -H 'Accept: application/vnd.github.raw+json' \
             "repos/${GITHUB_REPOSITORY}/contents/${path}?ref=${merge_base}" |
             "${scripts}/pin-lines.sh" |
-            jq -c --arg path "${path}" 'select(.version != null) | {path: $path, line, action, version, sha}' \
+            jq -c --arg path "${path}" 'select(.ref != null) | {path: $path, line, action, ref, exception, sha}' \
                 >>"${work}/base.jsonl"
     done <<<"${base_files}"
 fi
@@ -64,7 +69,7 @@ if [[ -n ${pr_files} ]]; then
     while IFS= read -r path; do
         # shellcheck disable=SC2094 # jq only gets the name, as a string; nothing is written.
         "${scripts}/pin-lines.sh" <"${path}" |
-            jq -c --arg path "${path}" 'select(.version != null) | . + {path: $path}' \
+            jq -c --arg path "${path}" 'select(.ref != null) | . + {path: $path}' \
                 >>"${work}/head.jsonl"
     done <<<"${pr_files}"
 fi
@@ -76,20 +81,21 @@ describe='def describe($pins): $pins | group_by(.sha)
     | map("\(.[0].sha[0:7]) (\(map("\(.path):\(.line)") | join(", ")))") | join(" and ");'
 
 findings=$(jq -rs --slurpfile base "${work}/base.jsonl" "${describe}"'
+    def named($pin): if $pin.exception then "ref \($pin.ref)" else $pin.ref end;
     . as $head
-    | def same($pin): select(.action == $pin.action and .version == $pin.version);
-    # Pins whose version was another commit at the merge base.
+    | def same($pin): select(.action == $pin.action and .ref == $pin.ref);
+    # Pins whose version or ref was another commit at the merge base.
     [$head[] as $pin
         | [$base[] | same($pin)] as $old
         | select(($old | length) > 0 and ($old | any(.sha == $pin.sha) | not))
-        | $pin + {message: "\($pin.action)@\($pin.sha[0:7]) is pinned as \($pin.version), but at the merge base \($pin.version) was \(describe($old)): the same version must be the same commit, so a tag was re-pointed or history was rewritten"}] as $moved
+        | $pin + {message: "\($pin.action)@\($pin.sha[0:7]) is pinned as \(named($pin)), but at the merge base \(named($pin)) was \(describe($old)): the same version or ref must be the same commit, so a tag was re-pointed or history was rewritten"}] as $moved
     # Pins that disagree with another pin of this pull request; a pin already
     # reported above is the cause, so it is neither reported nor compared again.
     | [$head[] | select(. as $pin | $moved | any(.path == $pin.path and .line == $pin.line) | not)] as $rest
     | [$rest[] as $pin
         | [$rest[] | same($pin) | select(.sha != $pin.sha)] as $other
         | select(($other | length) > 0)
-        | $pin + {message: "\($pin.action)@\($pin.sha[0:7]) is pinned as \($pin.version), but this pull request also pins \($pin.version) to \(describe($other)): the same version must be the same commit"}] as $clash
+        | $pin + {message: "\($pin.action)@\($pin.sha[0:7]) is pinned as \(named($pin)), but this pull request also pins \(named($pin)) to \(describe($other)): the same version or ref must be the same commit"}] as $clash
     | ($moved + $clash) | sort_by([.path, .line])[]
     | "\(.path):\(.line):\(.prefix | length): error: \(.message) [pin-changed]\n\(.text)\n"' \
     "${work}/head.jsonl")

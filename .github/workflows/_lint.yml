@@ -114,8 +114,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: zizmor --persona=auditor --format=github --quiet .
 
-      # Every SHA pin must end with exactly "# vX.Y.Z"; a failing line gets a
-      # suggested comment when a tag points at its commit. Prints gcc-style
+      # Every SHA pin must end with exactly "# vX.Y.Z", or with the exception
+      # for an upstream without vX.Y.Z tags ("# <ref> # pin-comment: no
+      # vX.Y.Z tag upstream", README.md); a failing line gets a suggested
+      # comment when a tag points at its commit. Prints gcc-style
       # findings, like actionlint. The suggested fixes are written as a diff
       # only where the suggestion plan reads it, the condition of that step:
       # not on push runs, and not on pull requests from forks.
