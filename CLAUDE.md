@@ -45,26 +45,15 @@ leaves the reader believing the rule holds.
   change or an extension a review suggested, is a new pull request,
   stacked on the open one when it depends on it. The owner asking to add
   something to an open pull request covers that one change.
-- A change that replaces what an unmerged commit introduced (a format, an
-  input, a message) means the design was not settled. Stop and ask the
-  owner how to go on before writing it.
-- Before building a new format that checked files will contain, run every
-  check that reads those files on an example, the way CI runs it.
-- A proposal names what it relies on (a tool's behavior, a setting) and
-  where that was checked.
 - A stack is one branch per part, each based on the previous one, each body
   starting "Part N of M" with links to its neighbours. After a part merges,
   the next one needs a rebase onto `main` and a force-push, which the owner
   chooses each time.
 
-**Why:** the owner reviews every line, and review gets harder with every
-unrelated change mixed in. A mixed pull request can't be approved in part:
-one objection blocks everything else in it. Reviewing a design that a
-later commit replaces is wasted work. Pull requests grow through follow-up
-pushes, so a check done only when opening one misses that. A check run
-differently from CI (offline instead of online, other flags) can pass what
-CI fails. The owner decides on the reasons a proposal gives, so an
-unchecked premise leads to a wrong decision.
+**Why:** the owner reviews every line, and every unrelated change mixed in
+makes that harder. A mixed pull request can't be approved in part: one
+objection blocks the rest. Pull requests grow through pushes after they
+are opened, so the check belongs to every push.
 
 ## Before removing a safeguard
 
