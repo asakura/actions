@@ -92,6 +92,26 @@ that nothing keeps in sync. It turns wrong with the next change and makes the
 reader work out what still applies. A reason told as an incident reads as
 covering that incident only.
 
+## Settle a design before building it
+
+- A proposal names what it relies on (a tool's behavior, a setting, a
+  config value) and where that was checked: the file, the command or the
+  documentation.
+- Before building a new format that checked files will contain (a comment
+  syntax, a marker, a file layout), run every check that reads those files
+  on an example, with the version, flags and network access CI uses.
+- A change that replaces what an unmerged commit introduced (a format, an
+  input, a message) means the design was not settled. Stop and ask the
+  owner how to go on before writing it.
+
+**Why:** the owner decides on the reasons a proposal gives, and a reason
+nobody checked turns that decision into a guess. A check's findings depend
+on how it runs, so a format tried only in a run unlike CI's fails after it
+is written, reviewed and copied into other files. A design replaced before
+it merges is reviewed twice, the version that goes and the one that stays,
+and whether the earlier commit stays, goes or is rewritten is the owner's
+choice.
+
 ## Be explicit; never rely on defaults
 
 Spell out every setting whose default affects behavior, even when the explicit
