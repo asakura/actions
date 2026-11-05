@@ -138,12 +138,12 @@ it or cut the feature that makes it hard to follow. In practice:
 - every input the caller passes is required (`: "${NAME:?…}"`), with no
   hidden default. Variables GitHub sets (`RUNNER_TEMP`, `GITHUB_OUTPUT`,
   `GITHUB_REPOSITORY`, …) are not inputs. This covers every way to write a
-  default: `${NAME:-x}`, `${NAME-x}`, an input documented as "optional", and,
-  in test fixtures, a jq `// value` that fills in a field the fixture didn't
-  state. jq's `//` stays only where absence is part of the data (a format or
+  default: `${NAME:-x}`, `${NAME-x}`, `${NAME:=x}`, `${NAME=x}`, an input
+  documented as "optional", and, in test fixtures, a jq `// value` that fills
+  in a field the fixture didn't state. jq's `//` stays only where absence is part of the data (a format or
   API that omits a field, an empty array, or an error message reporting the
   missing field), with a comment saying so.
-  `git grep -nE '\$\{[A-Za-z_]+:?-' .github` returns nothing.
+  `git grep -nE '\$\{[A-Za-z_]+:?[-=]' .github` returns nothing.
 
 **Why:** the owner reviews every line that runs with this repository's token.
 A script that takes an hour to follow gets approved unread, and code nobody
