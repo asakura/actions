@@ -14,13 +14,15 @@ It downloads the Determinate `nix-installer` binary from its GitHub release, ver
 Determinate Nix, FlakeHub login and installer telemetry are all off, and the runner user is not made a trusted Nix user.
 It is tested on GitHub-hosted `ubuntu-26.04` x64 runners; any runner that is not Linux x64 fails with an error.
 
-| Input | Default | Description |
-| -------------- | ----------------------- | ------------------------------------------------------------------------ |
-| `github-token` | `${{ github.token }}` | Written to nix.conf `access-tokens` to avoid GitHub API rate limits. |
+| Input | Required | Description |
+| -------------- | -------- | ------------------------------------------------------------------------------------------------------------------ |
+| `github-token` | yes | Written to nix.conf `access-tokens` to avoid GitHub API rate limits. Pass `${{ github.token }}`; the step fails if empty. |
 
 Permissions: none beyond what the caller's job already has.
 
 ```yaml
 steps:
   - uses: asakura/actions/.github/actions/setup-nix@<sha> # vX.Y.Z
+    with:
+      github-token: ${{ github.token }}
 ```

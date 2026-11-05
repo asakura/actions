@@ -12,9 +12,8 @@ description: Install a pinned community (upstream) Nix release with a sha256-ver
 
 inputs:
   github-token:
-    description: GitHub token written to nix.conf access-tokens to avoid GitHub API rate limits.
-    required: false
-    default: ${{ github.token }}
+    description: GitHub token written to nix.conf access-tokens, to avoid GitHub API rate limits when Nix fetches flakes from GitHub. Pass ${{ github.token }}.
+    required: true
 
 runs:
   using: composite
@@ -76,6 +75,7 @@ runs:
 
       run: |
         set -euo pipefail
+        : "${GITHUB_TOKEN_INPUT:?github-token input is required}"
         # The whole nix.conf, written before the installer starts the daemon,
         # so no setting comes from the installer's defaults.
         conf=(
