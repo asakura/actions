@@ -3,23 +3,23 @@
 #
 # Usage: lint-report.sh
 # Env:
-#   LINT_DIR           directory with <tool>.txt outputs (default
-#                      $RUNNER_TEMP/lint); report.md is written there.
+#   LINT_DIR           directory with <tool>.txt outputs; report.md is
+#                      written there.
 #   OUTCOME_ACTIONLINT, OUTCOME_ZIZMOR, OUTCOME_PIN_COMMENTS,
 #   OUTCOME_PIN_CHANGES, OUTCOME_SHELLCHECK, OUTCOME_SHFMT, OUTCOME_TESTS,
 #   OUTCOME_MDFORMAT
 #                      steps.<id>.outcome of each check.
 #   OUTCOME_CHANGES    steps.changes.outcome (optional).
 #   OUTCOME_SUGGESTIONS steps.suggestions.outcome (optional).
-#   MAX_OUTPUT_CHARS   cap on the output shown per failed tool (default 12000),
-#                      which keeps the report below the 65536-character limit of
-#                      a GitHub comment.
+#   MAX_OUTPUT_CHARS   cap on the output shown per failed tool, which keeps
+#                      the report below the 65536-character limit of a
+#                      GitHub comment.
 # Writes report.md in LINT_DIR; its only reader is the pull request comment.
 # Exits 0 even when checks failed: the failing check steps already fail the job.
 set -euo pipefail
 
-lint_dir=${LINT_DIR:-${RUNNER_TEMP:?RUNNER_TEMP or LINT_DIR is required}/lint}
-max_chars=${MAX_OUTPUT_CHARS:-12000}
+lint_dir=${LINT_DIR:?LINT_DIR is required}
+max_chars=${MAX_OUTPUT_CHARS:?MAX_OUTPUT_CHARS is required}
 mkdir -p "${lint_dir}"
 
 # Print the number of findings in the output of tool $1.
