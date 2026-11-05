@@ -6,9 +6,14 @@
 # .github/workflows/*.y{a,}ml and .github/actions/*/action.y{a,}ml, whatever
 # the action; the line must end with exactly "# vX.Y.Z" (digits only).
 # Env:
-#   PINS_DIFF  file to write the suggested fixes into, as a unified diff with
-#              one hunk per fixable line (shaped for diff-hunks.sh). It is
-#              replaced only when the check completes.
+#   WRITE_PINS_DIFF  "true" to write the suggested fixes to PINS_DIFF, "false"
+#                    not to; anything else is an error. Pass true only where
+#                    something reads the file: the suggestion plan of a pull
+#                    request.
+#   PINS_DIFF        file for the suggested fixes, as a unified diff with one
+#                    hunk per fixable line (shaped for diff-hunks.sh). Always
+#                    required; with WRITE_PINS_DIFF=false it is not touched.
+#                    With true it is replaced only when the check completes.
 # Prints one gcc-style finding per failing line, with the source line. For each
 # one it asks "git ls-remote --tags" for the vX.Y.Z tags that point at the
 # pinned commit (annotated tags by their peeled commit), takes the highest by
@@ -20,6 +25,14 @@
 set -euo pipefail
 
 : "${PINS_DIFF:?PINS_DIFF is required}"
+: "${WRITE_PINS_DIFF:?WRITE_PINS_DIFF is required}"
+case "${WRITE_PINS_DIFF}" in
+    true | false) ;;
+    *)
+        echo "check-pin-comments.sh: WRITE_PINS_DIFF must be true or false, not \"${WRITE_PINS_DIFF}\"" >&2
+        exit 2
+        ;;
+esac
 
 scripts=$(dirname "$0")
 work=$(mktemp -d)
@@ -76,5 +89,7 @@ for file in "${files[@]}"; do
     done <<<"${failing}"
 done
 
-mv "${work}/fixes.diff" "${PINS_DIFF}"
+if [[ ${WRITE_PINS_DIFF} == true ]]; then
+    mv "${work}/fixes.diff" "${PINS_DIFF}"
+fi
 exit "${status}"
