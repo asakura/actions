@@ -1,0 +1,37 @@
+name: demo pins
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  demo:
+    name: demo
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      # (a) checkout v7.0.1 at a commit that is not the one pinned elsewhere.
+      - uses: actions/checkout@0123456789abcdef0123456789abcdef01234567 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      # (b) the right commit of v7.0.1, with no comment and with a short one.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      # (d) an exception on a commit that has a vX.Y.Z tag.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7 # pin-comment: no vX.Y.Z tag upstream
+        with:
+          persist-credentials: false
+          fetch-depth: 1
