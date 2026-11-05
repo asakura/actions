@@ -16,10 +16,11 @@
 # marker is not on the "uses:" line, because zizmor reads everything after the
 # first "#" there as the version. The exception is accepted only while no
 # vX.Y.Z tag of that repository points at the pinned commit; when one does, it
-# is an error and the fix is "# vX.Y.Z" and no marker. Also an error: the old
-# inline form, a marker that is not directly above a pin, is indented
-# differently from it or has other text, and a marker above a pin whose
-# comment is not "# <ref>" (a vX.Y.Z or no single word).
+# is an error and the fix is "# vX.Y.Z" and no marker. Also an error: the
+# inline form (the marker on the "uses:" line itself), a marker that is not
+# directly above a pin, is indented differently from it or has other text,
+# and a marker above a pin whose comment is not "# <ref>" (a vX.Y.Z or no
+# single word).
 # Env:
 #   WRITE_PINS_DIFF  "true" to write the suggested fixes to PINS_DIFF, "false"
 #                    not to; anything else is an error. Pass true only where
