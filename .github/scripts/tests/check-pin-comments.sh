@@ -10,10 +10,16 @@ source "${tests}/lib/check.sh"
 # shellcheck source=lib/git-stub.sh
 source "${tests}/lib/git-stub.sh"
 
-# Run check-pin-comments.sh in the checkout ${tmp}/repo.
+# Run check-pin-comments.sh in the checkout ${tmp}/repo with WRITE_PINS_DIFF=$1.
 # shellcheck disable=SC2329 # called through check.
 pins() {
-    (cd "${tmp}/repo" && PINS_DIFF="${tmp}/pins.diff" "${tests}/../check-pin-comments.sh")
+    (cd "${tmp}/repo" && WRITE_PINS_DIFF=$1 PINS_DIFF="${tmp}/pins.diff" "${tests}/../check-pin-comments.sh")
+}
+
+# Print "present" or "absent" for file $1.
+# shellcheck disable=SC2329 # called through check.
+exists() {
+    if [[ -f $1 ]]; then echo present; else echo absent; fi
 }
 
 # A 40-digit commit made of one digit: sha 1 prints 1111111111111111111111111111111111111111.
@@ -52,7 +58,7 @@ check "a pin without a version comment, with a wrong one, with no tag upstream" 
 .github/workflows/x.yml:5:55: error: c/d@3333333 has the comment \"# stable\", but it must be the exact tag, and no vX.Y.Z tag of c/d points at this commit; every pin needs exactly \"# vX.Y.Z\". [pin-comment]
   - uses: c/d@${three} # stable
 [exit status 1]" \
-    pins
+    pins true
 
 # The fixes: the new comment on the line, the reason after the hunk header; no
 # fix for the line without a tag.
@@ -68,5 +74,24 @@ check "the suggested fixes, with the reason for each" \
 -  - uses: a/b@${one} # v1
 +  - uses: a/b@${one} # v1.2.3" \
     cat "${tmp}/pins.diff"
+
+# Where nothing reads the diff, it is not written; the findings are the same.
+rm "${tmp}/pins.diff"
+# shellcheck disable=SC2310 # the run fails on purpose; its findings are read next.
+pins false >"${tmp}/findings" 2>&1 || true
+check "WRITE_PINS_DIFF=false writes no diff" absent exists "${tmp}/pins.diff"
+check "and prints the same findings" 3 grep -c ' error: ' "${tmp}/findings"
+check "WRITE_PINS_DIFF must be true or false" \
+    'check-pin-comments.sh: WRITE_PINS_DIFF must be true or false, not "yes"
+[exit status 2]' \
+    pins yes
+
+# Print the error of a run without WRITE_PINS_DIFF, without the script's path.
+# shellcheck disable=SC2329 # called through check.
+missing() {
+    env -u WRITE_PINS_DIFF PINS_DIFF="${tmp}/pins.diff" "${tests}/../check-pin-comments.sh" 2>&1 |
+        sed 's/^.*: line [0-9]*: //' || true
+}
+check "WRITE_PINS_DIFF is required" "WRITE_PINS_DIFF: WRITE_PINS_DIFF is required" missing
 
 exit "${failed}"
