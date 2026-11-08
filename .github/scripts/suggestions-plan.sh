@@ -15,7 +15,9 @@
 #   PLAN_DIR           directory to write the plan into; created.
 #   GITHUB_OUTPUT      receives work=true when the plan has anything in it.
 # The plan:
-#   review.json  one review with a suggested change per formatter hunk, except
+#   review.json  one review with a suggested change per formatter hunk (its
+#                note, when the tool gave one, says why; else the comment says
+#                the formatter would format the lines like this), except
 #                hunks outside the pull request diff (GitHub rejects those; the
 #                lint report comment still shows them) and hunks whose exact
 #                suggestion is already open. Written only when there is one.
@@ -104,9 +106,10 @@ jq -c 'select(.start >= 1)
     # When no line has a backtick there is no run, and max of [] is null.
     | ("`" * ([([.lines[] | scan("`+") | length] | max // 0) + 1, 3] | max)) as $fence
     | (if .start < .end then "these lines" else "this line" end) as $what
+    | (if .note != "" then .note else "\(.tool) would format \($what) like this:" end) as $intro
     # lines is empty when the formatter empties the file (new side +0,0); add of [] is null.
     | {tool, path, line: .end, side: "RIGHT",
-       body: "<!-- lint-suggestion tool=\(.tool) -->\n\(.tool) would format \($what) like this:\n\n\($fence)suggestion\n\(.lines | map(. + "\n") | add // "")\($fence)"}
+       body: "<!-- lint-suggestion tool=\(.tool) -->\n\($intro)\n\n\($fence)suggestion\n\(.lines | map(. + "\n") | add // "")\($fence)"}
     + (if .start < .end then {start_line: .start, start_side: "RIGHT"} else {} end)' \
     "${work}/hunks.jsonl" >"${work}/suggestions.jsonl"
 
@@ -158,7 +161,7 @@ if [[ -s ${work}/comments.jsonl ]]; then
     jq -s --arg sha "${HEAD_SHA}" '{
         commit_id: $sha,
         event: "COMMENT",
-        body: "The formatters would change the lines below. Press \"Apply suggestion\" to take one change, or add several to a batch and commit them together. Changes outside the lines this pull request touches are only in the lint report comment.",
+        body: "The lint checks would change the lines below. Press \"Apply suggestion\" to take one change, or add several to a batch and commit them together. Changes outside the lines this pull request touches are only in the lint report comment.",
         comments: .}' "${work}/comments.jsonl" >"${PLAN_DIR}/review.json"
     posted=$(wc -l <"${work}/comments.jsonl")
     total=$(wc -l <"${work}/hunks.jsonl")
