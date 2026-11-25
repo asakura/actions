@@ -63,6 +63,19 @@
     },
     {
       "customType": "regex",
+      "description": "trufflehog release binary in secret-scan.yml (TRUFFLEHOG_SHA256 is bumped by hand)",
+      "managerFilePatterns": [
+        "/^\\.github/workflows/[^/]+\\.ya?ml$/"
+      ],
+      "matchStrings": [
+        "TRUFFLEHOG_VERSION: (?<currentValue>\\d+\\.\\d+\\.\\d+)\\n"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "trufflesecurity/trufflehog",
+      "extractVersionTemplate": "^v(?<version>.+)$"
+    },
+    {
+      "customType": "regex",
       "description": "Upstream Nix release tarball in the setup-nix action (NIX_SHA256 is bumped by hand); NixOS/nix publishes tags, not GitHub releases",
       "managerFilePatterns": [
         "/^\\.github/actions/[^/]+/action\\.ya?ml$/"
@@ -104,6 +117,7 @@
       "matchDepNames": [
         "rhysd/actionlint",
         "zizmorcore/zizmor",
+        "trufflesecurity/trufflehog",
         "DeterminateSystems/nix-installer",
         "NixOS/nix"
       ],

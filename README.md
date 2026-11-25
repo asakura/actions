@@ -52,3 +52,70 @@ steps:
     with:
       github-token: ${{ github.token }}
 ```
+
+## secret-scan
+
+Reusable workflow `.github/workflows/secret-scan.yml`.
+On pull requests, `gitleaks-pr` runs gitleaks over the commits the pull request adds and prints each finding with the secret redacted.
+On push, schedule and manual runs, `full-history` scans every commit of every branch and tag with gitleaks and, if `trufflehog` is true, with trufflehog, which reports only credentials it verified as live.
+A scheduled run skips the scan when the default branch has had no commit for `idle-days` days.
+`full-history` and `notify` run only in repositories owned by `asakura`.
+All jobs run on `ubuntu-26.04`.
+gitleaks is the Ubuntu archive's package; trufflehog is the release binary whose version and sha256 are pinned in the workflow.
+gitleaks reads the scanned repository's `.gitleaks.toml` when it has one, so allowlisting a false positive there takes effect in both scans.
+
+`notify` keeps at most one open issue per repository.
+It finds the issue by a hidden marker in its body (`<!-- asakura-actions-secret-scan -->`), authored by `github-actions[bot]`, so renaming the issue or changing `issue-title` does not orphan it.
+It runs only for the default branch, and only when there is something to write:
+
+- When the full-history scan fails, it comments on the open issue, or creates one with `issue-title` if there is none, and closes any further open marker issues as duplicates. The text lists each finding by file, line, commit and rule, never the secret, at most 50 per scanner with the rest in the run log; or it says which scanner failed before finishing.
+- When the scan passes while an issue is open, it comments on every open marker issue that the findings are gone (removed from history, allowlisted, or no longer verified by trufflehog) and closes it as completed. A real exposed secret must already have been rotated. A pass with no open issue posts nothing.
+- A scheduled run skipped as idle scans nothing and never closes an issue.
+- A run whose commit is no longer the head of its ref changes nothing.
+- A run of any other ref, such as a manual run on a feature branch, scans but never touches issues.
+- A run that cannot read the repository or its open issues from the API fails without touching issues.
+
+Every input is required; there are no defaults.
+
+| Input | Type | Required | Description |
+| ----- | ---- | -------- | ----------- |
+| `trufflehog` | boolean | yes | Whether the full-history scan also runs trufflehog (verified credentials only). |
+| `idle-days` | number | yes | Skip a scheduled full-history scan when the default branch has no commit in this many days; `0` turns the check off. |
+| `issue-title` | string | yes | Title of a new failure issue. |
+| `timeout-minutes` | number | yes | Timeout of each job. |
+
+Secrets: none; the workflow uses the caller's `github.token`.
+Outputs: none.
+
+Permissions the caller must grant: `contents: read` (checkout, the idle check and the head-of-ref check) and `issues: write` (`notify`; `full-history` reads issues with the same grant).
+The check name to require in branch protection is `secret-scan / gitleaks-pr`.
+
+```yaml
+name: secret-scan
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1" # weekly, Monday 06:00 UTC
+  workflow_dispatch:
+permissions: {}
+defaults:
+  run:
+    shell: bash
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+jobs:
+  secret-scan:
+    uses: asakura/actions/.github/workflows/secret-scan.yml@<sha> # vX.Y.Z
+    permissions:
+      contents: read # the workflow checks out the history and lists recent commits
+      issues: write # the workflow opens, comments on and closes the scan issue
+    with:
+      trufflehog: true
+      idle-days: 7
+      issue-title: Secret scan failed on the default branch history
+      timeout-minutes: 30
+```
