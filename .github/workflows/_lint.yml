@@ -72,10 +72,10 @@ jobs:
           sudo apt-get install -y --no-install-recommends shellcheck shfmt mdformat
           .github/scripts/install-binary.sh \
             "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" \
-            "${ACTIONLINT_SHA256}" actionlint actionlint
+            "${ACTIONLINT_SHA256}" actionlint actionlint "${RUNNER_TEMP}/bin"
           .github/scripts/install-binary.sh \
             "https://github.com/zizmorcore/zizmor/releases/download/v${ZIZMOR_VERSION}/zizmor-x86_64-unknown-linux-gnu.tar.gz" \
-            "${ZIZMOR_SHA256}" zizmor zizmor
+            "${ZIZMOR_SHA256}" zizmor zizmor "${RUNNER_TEMP}/bin"
           echo "${RUNNER_TEMP}/bin" >> "${GITHUB_PATH}"
 
       # Each check keeps its own exit status (the step turns red) and saves

@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # Install one executable from a release tarball after verifying its hash.
 #
-# Usage: install-binary.sh URL SHA256 MEMBER NAME [BIN_DIR]
+# Usage: install-binary.sh URL SHA256 MEMBER NAME BIN_DIR
 #   URL      https URL of a .tar.gz archive.
 #   SHA256   expected sha256 of the archive; a mismatch aborts.
 #   MEMBER   path of the executable inside the archive.
 #   NAME     file name to install it as.
-#   BIN_DIR  destination directory (default: $RUNNER_TEMP/bin).
+#   BIN_DIR  destination directory.
 set -euo pipefail
 
-if [[ $# -lt 4 || $# -gt 5 ]]; then
-    echo "usage: $0 URL SHA256 MEMBER NAME [BIN_DIR]" >&2
+if [[ $# -ne 5 ]]; then
+    echo "usage: $0 URL SHA256 MEMBER NAME BIN_DIR" >&2
     exit 2
 fi
 
@@ -18,7 +18,7 @@ url=$1
 sha256=$2
 member=$3
 name=$4
-bin_dir=${5:-${RUNNER_TEMP:?RUNNER_TEMP or BIN_DIR is required}/bin}
+bin_dir=$5
 
 work=$(mktemp -d)
 trap 'rm -rf "${work}"' EXIT
