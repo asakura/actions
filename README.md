@@ -61,7 +61,7 @@ On push, schedule and manual runs, `full-history` scans every commit of every br
 A scheduled run skips the scan when the default branch has had no commit for `idle-days` days.
 `full-history` and `notify` run only in repositories owned by `asakura`.
 All jobs run on `ubuntu-26.04`.
-gitleaks is the Ubuntu archive's package; trufflehog is the release binary whose version and sha256 are pinned in the workflow.
+gitleaks and trufflehog are release binaries whose versions and sha256s are pinned in the workflow.
 gitleaks reads the scanned repository's `.gitleaks.toml` when it has one, so allowlisting a false positive there takes effect in both scans.
 
 `notify` keeps at most one open issue per repository.

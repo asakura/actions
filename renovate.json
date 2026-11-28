@@ -63,6 +63,19 @@
     },
     {
       "customType": "regex",
+      "description": "gitleaks release binary in secret-scan.yml (GITLEAKS_SHA256 is bumped by hand)",
+      "managerFilePatterns": [
+        "/^\\.github/workflows/[^/]+\\.ya?ml$/"
+      ],
+      "matchStrings": [
+        "GITLEAKS_VERSION: (?<currentValue>\\d+\\.\\d+\\.\\d+)\\n"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "gitleaks/gitleaks",
+      "extractVersionTemplate": "^v(?<version>.+)$"
+    },
+    {
+      "customType": "regex",
       "description": "trufflehog release binary in secret-scan.yml (TRUFFLEHOG_SHA256 is bumped by hand)",
       "managerFilePatterns": [
         "/^\\.github/workflows/[^/]+\\.ya?ml$/"
@@ -117,6 +130,7 @@
       "matchDepNames": [
         "rhysd/actionlint",
         "zizmorcore/zizmor",
+        "gitleaks/gitleaks",
         "trufflesecurity/trufflehog",
         "DeterminateSystems/nix-installer",
         "NixOS/nix"
